@@ -1,0 +1,12 @@
+.firebase/
+.firebaserc.local
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+node_modules/
+functions/node_modules/
+
+.env
+.env.local
+.env.*.local

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rockeala | Salon de estetica</title>
+  <link rel="icon" type="image/webp" href="./rockeala_icon.webp">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Rockeala salon</p>
+        <h1>Precios vivos, servicios claros y solicitudes de turno sin vueltas.</h1>
+        <p class="lead">
+          Esta version ya esta preparada para leer el catalogo publico desde Firebase,
+          guardar cache en IndexedDB y enviar solicitudes reales de turno a Cloud Functions.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#turnos">Solicitar turno</a>
+          <a class="button button-secondary" href="#precios">Ver precios</a>
+        </div>
+      </div>
+
+      <aside class="hero-panel">
+        <span class="panel-chip" id="sync-status">Inicializando catalogo</span>
+        <h2>Horarios, duraciones y catalogo conectados a una sola base.</h2>
+        <div class="hero-panel__stats">
+          <article>
+            <strong id="public-service-count">0</strong>
+            <span>servicios</span>
+          </article>
+          <article>
+            <strong id="public-area-count">0</strong>
+            <span>areas</span>
+          </article>
+          <article>
+            <strong>10-20</strong>
+            <span>martes a sabado</span>
+          </article>
+        </div>
+        <ul class="hero-list">
+          <li>Servicios publicos leidos desde Firestore</li>
+          <li>Precios y duraciones estimadas por profesional</li>
+          <li>Cache local silencioso para acelerar futuras visitas</li>
+        </ul>
+      </aside>
+    </header>
+
+    <main>
+      <section class="section section-services" id="servicios">
+        <div class="section-heading">
+          <p class="eyebrow">Servicios</p>
+          <h2>Tres areas publicas, con profesionales y precios visibles desde el primer scroll.</h2>
+        </div>
+        <div class="services-grid" id="services-grid"></div>
+      </section>
+
+      <section class="section section-prices" id="precios">
+        <div class="section-heading">
+          <p class="eyebrow">Precios</p>
+          <h2>Si el catalogo cambia en Firebase, esta tabla puede refrescarse sin interrumpir la visita.</h2>
+        </div>
+        <div class="price-board">
+          <div class="price-board__meta">
+            <div>
+              <p id="catalog-source">Esperando catalogo</p>
+              <p id="last-sync">Sin sincronizacion todavia</p>
+            </div>
+            <div class="price-board__badge">
+              <span id="catalog-count">0 servicios</span>
+            </div>
+          </div>
+          <div class="price-board__list" id="price-list"></div>
+        </div>
+      </section>
+
+      <section class="section section-booking" id="turnos">
+        <div class="section-heading">
+          <p class="eyebrow">Turnos</p>
+          <h2>El pedido entra por Functions para validar horarios, servicio y profesional antes de guardar.</h2>
+        </div>
+
+        <div class="booking-layout">
+          <form class="booking-form" id="booking-form">
+            <div class="form-grid">
+              <label>
+                <span>Nombre completo</span>
+                <input id="client-name" name="fullName" type="text" required placeholder="Ej. Ana Lopez">
+              </label>
+
+              <label>
+                <span>Telefono</span>
+                <input id="client-phone" name="phone" type="tel" required placeholder="Ej. 11 5555 5555">
+              </label>
+
+              <label>
+                <span>Email</span>
+                <input id="client-email" name="email" type="email" placeholder="Ej. hola@email.com">
+              </label>
+
+              <label>
+                <span>Area</span>
+                <select id="area-select" name="area" required></select>
+              </label>
+
+              <label class="field-wide">
+                <span>Servicio</span>
+                <select id="service-select" name="serviceId" required></select>
+              </label>
+
+              <label class="field-wide">
+                <span>Fecha y hora deseada</span>
+                <input id="requested-start" name="requestedStart" type="datetime-local" required>
+              </label>
+
+              <label class="field-wide">
+                <span>Notas</span>
+                <textarea id="client-notes" name="notes" rows="4" placeholder="Preferencias, consultas o detalles utiles para el servicio."></textarea>
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button class="button button-primary" id="submit-booking" type="submit">Enviar solicitud</button>
+              <p class="form-message" id="booking-message" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+
+          <aside class="booking-summary">
+            <div class="summary-card" id="selected-service-card">
+              <p class="eyebrow">Servicio elegido</p>
+              <h3>Elegi un servicio para ver precio y duracion.</h3>
+              <p>La duracion del turno es estimada y puede variar segun diagnostico y trabajo final.</p>
+            </div>
+
+            <div class="summary-card">
+              <p class="eyebrow">Reglas de solicitud</p>
+              <ul class="summary-list">
+                <li>Pedidos validos de martes a sabado</li>
+                <li>Franja operativa de 10:00 a 20:00</li>
+                <li>Confirmacion final desde el panel administrador</li>
+              </ul>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div>
+        <p class="eyebrow">Rockeala</p>
+        <p>Web publica lista para `rockeala.com.ar` con lectura de catalogo y solicitud de turnos.</p>
+      </div>
+      <div class="footer-meta">
+        <span>Panel separado en `admin.rockeala.com.ar`</span>
+        <span>Firebase Hosting + Firestore + Functions</span>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

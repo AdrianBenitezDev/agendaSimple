@@ -1,0 +1,9 @@
+Lo que sí necesitas hacer manualmente en Firebase ahora:
+Crear el proyecto Firebase real.
+Crear la Firestore Database.
+Habilitar Authentication con Google.
+Crear al menos una app web y copiar la config en:apps/public-web/public/firebase-config.js (line 1)
+apps/admin-web/public/firebase-config.js (line 1)
+
+Iniciar sesión en el panel con Google una vez, copiar el uid que te muestra si no existe, y crear admins/{uid}.
+Cuando hagas eso, sigo yo con lo siguiente: ajustar .firebaserc al projectId real, preparar los admins reales y dejarte el deploy listo.

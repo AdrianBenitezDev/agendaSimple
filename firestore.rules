@@ -1,0 +1,149 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function adminProfileExists() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function activeAdmin() {
+      return adminProfileExists()
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active == true;
+    }
+
+    function ownsAdmin(adminId) {
+      return activeAdmin() && request.auth.uid == adminId;
+    }
+
+    function ownsOwnAdminProfile(adminId) {
+      return signedIn() && request.auth.uid == adminId;
+    }
+
+    function adminEditableKeys() {
+      return [
+        "displayName",
+        "businessName",
+        "area",
+        "publicArea",
+        "photoUrl",
+        "photoStoragePath",
+        "timezone",
+        "slug",
+        "updatedAt"
+      ];
+    }
+
+    function ownsClient(adminIds) {
+      return activeAdmin()
+        && adminIds is list
+        && request.auth.uid in adminIds;
+    }
+
+    match /admins/{adminId} {
+      allow read: if ownsOwnAdminProfile(adminId);
+      allow create: if false;
+      allow update: if ownsOwnAdminProfile(adminId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(adminEditableKeys())
+        && (!("active" in resource.data) || request.resource.data.active == resource.data.active)
+        && (!("publicBookingEnabled" in resource.data) || request.resource.data.publicBookingEnabled == resource.data.publicBookingEnabled)
+        && (!("email" in resource.data) || request.resource.data.email == resource.data.email)
+        && (!("createdAt" in resource.data) || request.resource.data.createdAt == resource.data.createdAt);
+      allow delete: if false;
+
+      match /config/{docId} {
+        allow read, write: if ownsAdmin(adminId);
+      }
+
+      match /availability/{docId} {
+        allow read, write: if ownsAdmin(adminId);
+      }
+
+      match /catalogSettings/{docId} {
+        allow read, write: if ownsAdmin(adminId);
+      }
+    }
+
+    match /servicios/{serviceId} {
+      allow read: if resource.data.publicVisible == true
+        || (activeAdmin() && resource.data.adminId == request.auth.uid);
+
+      allow create: if activeAdmin()
+        && request.resource.data.adminId == request.auth.uid
+        && request.resource.data.name is string
+        && (request.resource.data.price is int || request.resource.data.price is float)
+        && request.resource.data.durationMinutes is int
+        && request.resource.data.durationMinutes > 0;
+
+      allow update: if activeAdmin()
+        && resource.data.adminId == request.auth.uid
+        && request.resource.data.adminId == resource.data.adminId
+        && request.resource.data.durationMinutes is int
+        && request.resource.data.durationMinutes > 0;
+
+      allow delete: if activeAdmin() && resource.data.adminId == request.auth.uid;
+    }
+
+    match /turnos/{appointmentId} {
+      allow read: if activeAdmin() && resource.data.adminId == request.auth.uid;
+      allow create: if false;
+      allow update: if activeAdmin()
+        && resource.data.adminId == request.auth.uid
+        && request.resource.data.adminId == resource.data.adminId;
+      allow delete: if activeAdmin() && resource.data.adminId == request.auth.uid;
+    }
+
+    match /clientes/{clientId} {
+      allow read: if ownsClient(resource.data.adminIds);
+      allow create: if ownsClient(request.resource.data.adminIds);
+      allow update: if ownsClient(resource.data.adminIds)
+        && ownsClient(request.resource.data.adminIds);
+      allow delete: if false;
+
+      match /perfilesAdmin/{adminId} {
+        allow read, write: if ownsAdmin(adminId);
+
+        match /tratamientos/{treatmentId} {
+          allow read, write: if ownsAdmin(adminId);
+        }
+      }
+    }
+
+    match /stock/{stockId} {
+      allow read: if activeAdmin() && resource.data.adminId == request.auth.uid;
+      allow create: if activeAdmin()
+        && request.resource.data.adminId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.quantity is int;
+      allow update: if activeAdmin()
+        && resource.data.adminId == request.auth.uid
+        && request.resource.data.adminId == resource.data.adminId;
+      allow delete: if activeAdmin() && resource.data.adminId == request.auth.uid;
+    }
+
+    match /productos/{productId} {
+      allow read: if activeAdmin() && resource.data.adminId == request.auth.uid;
+      allow create: if activeAdmin()
+        && request.resource.data.adminId == request.auth.uid
+        && request.resource.data.name is string
+        && (request.resource.data.price is int || request.resource.data.price is float);
+      allow update: if activeAdmin()
+        && resource.data.adminId == request.auth.uid
+        && request.resource.data.adminId == resource.data.adminId;
+      allow delete: if activeAdmin() && resource.data.adminId == request.auth.uid;
+    }
+
+    match /pagos/{paymentId} {
+      allow read: if activeAdmin() && resource.data.adminId == request.auth.uid;
+      allow create: if activeAdmin()
+        && request.resource.data.adminId == request.auth.uid;
+      allow update: if activeAdmin()
+        && resource.data.adminId == request.auth.uid
+        && request.resource.data.adminId == resource.data.adminId;
+      allow delete: if activeAdmin() && resource.data.adminId == request.auth.uid;
+    }
+  }
+}

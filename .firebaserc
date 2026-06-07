@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "rockeala"
+  },
+  "targets": {
+    "rockeala": {
+      "hosting": {
+        "adminWeb": [
+          "rockeala-admin"
+        ],
+        "publicWeb": [
+          "rockeala"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

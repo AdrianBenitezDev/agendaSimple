@@ -1,0 +1,106 @@
+Quiero crear un proyecto web para un salón de estética llamado **Rockeala**.
+
+El sistema debe tener dos partes:
+
+1. **Web pública para clientes**
+
+   * Dominio: `rockeala.com.ar`
+   * Archivo principal: `index.html`
+   * Debe tener:
+
+     * Hero de presentación.
+     * Sección de servicios.
+     * Servicios: peluquería, depilación, manicura.
+     * Visualización de precios.
+     * Sección para solicitar turnos.
+     * Footer.
+   * Los datos de servicios y precios deben cargarse desde Firebase.
+   * Al iniciar la web, debe cargar silenciosamente los precios y guardarlos en caché o IndexedDB para mejorar velocidad.
+   * Los turnos pueden solicitarse de martes a sábado, de 10:00 a 20:00.
+   * Cada administrador debe poder definir desde su panel la duración estimada de cada servicio.
+   * En la web pública debe aclararse que la duración del turno es estimada.
+   * Duraciones iniciales:
+
+     * Corte: 20 minutos.
+     * Tintura: 1 hora.
+
+2. **Panel de administradores**
+
+   * Dominio: `admin.rockeala.com.ar`
+   * Debe usar Firebase Hosting.
+   * Backend con Firebase Functions.
+   * Login con cuenta de Google mediante Firebase Authentication.
+   * Según el usuario logueado, debe cargarse el panel correspondiente.
+   * Hay 4 administradores/áreas:
+
+     * Manicura.
+     * Depilación.
+     * Peluquería Natalia.
+     * Peluquería Raúl.
+   * Cada administrador maneja su propio negocio, precios, clientes, turnos, pagos, stock y productos.
+
+Base de datos Firebase / Firestore:
+
+* Debe existir una colección para usuarios administradores.
+* Cada administrador puede tener configuraciones propias.
+* Las colecciones de cada admin pueden ser diferentes porque tienen necesidades distintas.
+* Pero todos comparten estas necesidades:
+
+  * Clientes.
+  * Turnos.
+  * Stock.
+  * Stock venta / productos para comerciar.
+  * Servicios y precios.
+
+Clientes:
+
+* Debe existir una colección general llamada `clientes`.
+* En el panel de cada administrador debe haber una sección “Clientes”.
+* Cada cliente debe tener una ficha cargada desde Firebase.
+* Desde el panel admin se debe poder crear, editar y consultar fichas de clientes.
+
+Para el admin de **Peluquería Natalia**, la ficha de cliente debe incluir:
+
+* Datos básicos del cliente.
+* Color.
+* Último tratamiento.
+* Cambio de color.
+* Volumen de agua oxigenada.
+* Si se hizo mechas.
+* Tratamientos con formol.
+* Todos los tratamientos deben guardar fecha.
+
+Stock:
+
+* Crear una sección de stock en el panel administrador.
+* Debe consumir una colección de Firebase llamada `stock`.
+* Desde el panel se deben poder agregar productos con:
+
+  * Nombre.
+  * Cantidad.
+  * Precio.
+  * Marca.
+  * Categoría.
+  * Fecha de creación o actualización.
+
+Objetivo para Codex:
+
+Analizar este requerimiento y crear una propuesta técnica inicial del proyecto Firebase llamado **rockeala**.
+
+Debe proponer:
+
+* Estructura de carpetas.
+* Archivos necesarios.
+* Estructura recomendada de Firestore.
+* Reglas básicas de seguridad.
+* Flujo de autenticación.
+* Flujo para cargar precios y servicios.
+* Flujo para solicitar turnos.
+* Diseño inicial de `index.html`.
+* Diseño inicial del panel administrador.
+* Separación entre web pública y admin.
+* Recomendaciones para usar Firebase Hosting con `rockeala.com.ar` y `admin.rockeala.com.ar`.
+
+Importante:
+
+No implementar todo de golpe sin antes dejar clara la estructura del proyecto. Primero quiero una base ordenada, escalable y fácil de mantener.
