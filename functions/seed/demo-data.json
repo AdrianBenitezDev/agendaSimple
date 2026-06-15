@@ -1,326 +1,397 @@
 {
-  "admins": [
+  "tenants": [
     {
-      "id": "demo-manicura",
+      "id": "rockeala",
       "data": {
-        "displayName": "Manicura",
-        "businessName": "Rockeala Manicura",
-        "area": "Manicura",
-        "publicArea": "Manicura",
-        "email": "manicura@rockeala.local",
+        "name": "Rockeala",
+        "slug": "rockeala",
+        "businessName": "Rockeala Salon",
         "active": true,
-        "publicBookingEnabled": true,
-        "timezone": "America/Argentina/Buenos_Aires"
-      }
-    },
-    {
-      "id": "demo-depilacion",
-      "data": {
-        "displayName": "Depilacion",
-        "businessName": "Rockeala Depilacion",
-        "area": "Depilacion",
-        "publicArea": "Depilacion",
-        "email": "depilacion@rockeala.local",
-        "active": true,
-        "publicBookingEnabled": true,
-        "timezone": "America/Argentina/Buenos_Aires"
-      }
-    },
-    {
-      "id": "demo-natalia",
-      "data": {
-        "displayName": "Peluqueria Natalia",
-        "businessName": "Rockeala Peluqueria Natalia",
-        "area": "Peluqueria Natalia",
-        "publicArea": "Peluqueria",
-        "email": "natalia@rockeala.local",
-        "active": true,
-        "publicBookingEnabled": true,
+        "publicEnabled": true,
+        "adminEnabled": true,
+        "customDomain": "rockeala.com.ar",
         "timezone": "America/Argentina/Buenos_Aires",
-        "slug": "natalia"
-      }
-    },
-    {
-      "id": "demo-raul",
-      "data": {
-        "displayName": "Peluqueria Raul",
-        "businessName": "Rockeala Peluqueria Raul",
-        "area": "Peluqueria Raul",
-        "publicArea": "Peluqueria",
-        "email": "raul@rockeala.local",
-        "active": true,
-        "publicBookingEnabled": true,
-        "timezone": "America/Argentina/Buenos_Aires"
-      }
-    }
-  ],
-  "servicios": [
-    {
-      "id": "svc-corte-natalia",
-      "data": {
-        "adminId": "demo-natalia",
-        "adminName": "Peluqueria Natalia",
-        "businessName": "Rockeala Peluqueria Natalia",
-        "area": "Peluqueria",
-        "name": "Corte",
-        "description": "Servicio rapido para mantenimiento y cambio de look.",
-        "price": 12000,
-        "currency": "ARS",
-        "durationMinutes": 20,
-        "publicVisible": true,
-        "sortOrder": 1,
-        "createdAt": "2026-06-05T12:00:00.000Z",
-        "updatedAt": "2026-06-05T12:00:00.000Z"
-      }
-    },
-    {
-      "id": "svc-tintura-natalia",
-      "data": {
-        "adminId": "demo-natalia",
-        "adminName": "Peluqueria Natalia",
-        "businessName": "Rockeala Peluqueria Natalia",
-        "area": "Peluqueria",
-        "name": "Tintura",
-        "description": "Coloracion completa con duracion estimada configurable.",
-        "price": 30000,
-        "currency": "ARS",
-        "durationMinutes": 60,
-        "publicVisible": true,
-        "sortOrder": 2,
-        "createdAt": "2026-06-05T12:00:00.000Z",
-        "updatedAt": "2026-06-05T12:00:00.000Z"
-      }
-    },
-    {
-      "id": "svc-corte-raul",
-      "data": {
-        "adminId": "demo-raul",
-        "adminName": "Peluqueria Raul",
-        "businessName": "Rockeala Peluqueria Raul",
-        "area": "Peluqueria",
-        "name": "Corte premium",
-        "description": "Version para mostrar multiples profesionales en la misma area.",
-        "price": 14500,
-        "currency": "ARS",
-        "durationMinutes": 30,
-        "publicVisible": true,
-        "sortOrder": 3,
-        "createdAt": "2026-06-05T12:00:00.000Z",
-        "updatedAt": "2026-06-05T12:00:00.000Z"
-      }
-    },
-    {
-      "id": "svc-perfilado",
-      "data": {
-        "adminId": "demo-depilacion",
-        "adminName": "Depilacion",
-        "businessName": "Rockeala Depilacion",
-        "area": "Depilacion",
-        "name": "Perfilado de cejas",
-        "description": "Definicion y prolijidad para una visita breve.",
-        "price": 9000,
-        "currency": "ARS",
-        "durationMinutes": 25,
-        "publicVisible": true,
-        "sortOrder": 4,
-        "createdAt": "2026-06-05T12:00:00.000Z",
-        "updatedAt": "2026-06-05T12:00:00.000Z"
-      }
-    },
-    {
-      "id": "svc-piernas",
-      "data": {
-        "adminId": "demo-depilacion",
-        "adminName": "Depilacion",
-        "businessName": "Rockeala Depilacion",
-        "area": "Depilacion",
-        "name": "Piernas completas",
-        "description": "Bloque pensado para mostrar tiempos estimados.",
-        "price": 16000,
-        "currency": "ARS",
-        "durationMinutes": 45,
-        "publicVisible": true,
-        "sortOrder": 5,
-        "createdAt": "2026-06-05T12:00:00.000Z",
-        "updatedAt": "2026-06-05T12:00:00.000Z"
-      }
-    },
-    {
-      "id": "svc-semi",
-      "data": {
-        "adminId": "demo-manicura",
-        "adminName": "Manicura",
-        "businessName": "Rockeala Manicura",
-        "area": "Manicura",
-        "name": "Semipermanente",
-        "description": "Color, preparacion y terminacion en una sola reserva.",
-        "price": 14500,
-        "currency": "ARS",
-        "durationMinutes": 50,
-        "publicVisible": true,
-        "sortOrder": 6,
-        "createdAt": "2026-06-05T12:00:00.000Z",
-        "updatedAt": "2026-06-05T12:00:00.000Z"
-      }
-    }
-  ],
-  "clientes": [
-    {
-      "id": "client-ana-lopez",
-      "data": {
-        "adminIds": ["demo-natalia"],
-        "fullName": "Ana Lopez",
-        "phone": "11 5555 1111",
-        "phoneSearch": "1155551111",
-        "email": "ana.lopez@demo.local",
-        "emailSearch": "ana.lopez@demo.local",
-        "notes": "Cliente frecuente de coloracion.",
-        "lastVisitAt": "2026-06-01T15:00:00.000Z",
-        "createdAt": "2026-05-15T12:00:00.000Z",
-        "updatedAt": "2026-06-01T15:00:00.000Z"
+        "whatsAppPhone": "54 9 11 2491-3261",
+        "whatsAppMessage": "Hola Rockeala, quiero reservar un turno."
       },
-      "adminProfiles": {
-        "demo-natalia": {
+      "admins": [
+        {
+          "id": "demo-natalia",
           "data": {
-            "colorActual": "castano cobrizo",
-            "ultimoTratamiento": "nutricion profunda",
-            "cambioColor": "de rubio a cobrizo",
-            "volumenAguaOxigenada": "20 vol",
-            "mechas": true,
-            "tratamientosConFormol": false,
+            "displayName": "Peluqueria Natalia",
+            "businessName": "Rockeala Peluqueria Natalia",
+            "area": "Peluqueria Natalia",
+            "publicArea": "Peluqueria",
+            "role": "peluqueria",
+            "specialtyKey": "peluqueria",
+            "membershipRole": "owner",
+            "email": "natalia@rockeala.local",
+            "emailNormalized": "natalia@rockeala.local",
+            "active": true,
+            "publicBookingEnabled": true,
+            "timezone": "America/Argentina/Buenos_Aires",
+            "slug": "natalia",
+            "canManageAdminAccess": true
+          }
+        },
+        {
+          "id": "demo-manicura",
+          "data": {
+            "displayName": "Manicura",
+            "businessName": "Rockeala Manicura",
+            "area": "Manicura",
+            "publicArea": "Manicura",
+            "role": "manicura",
+            "specialtyKey": "manicura",
+            "membershipRole": "professional",
+            "email": "manicura@rockeala.local",
+            "emailNormalized": "manicura@rockeala.local",
+            "active": true,
+            "publicBookingEnabled": true,
+            "timezone": "America/Argentina/Buenos_Aires"
+          }
+        },
+        {
+          "id": "demo-depilacion",
+          "data": {
+            "displayName": "Depilacion",
+            "businessName": "Rockeala Depilacion",
+            "area": "Depilacion",
+            "publicArea": "Depilacion",
+            "role": "depilacion",
+            "specialtyKey": "depilacion",
+            "membershipRole": "professional",
+            "email": "depilacion@rockeala.local",
+            "emailNormalized": "depilacion@rockeala.local",
+            "active": true,
+            "publicBookingEnabled": true,
+            "timezone": "America/Argentina/Buenos_Aires"
+          }
+        }
+      ],
+      "servicios": [
+        {
+          "id": "svc-corte-natalia",
+          "data": {
+            "adminId": "demo-natalia",
+            "adminName": "Peluqueria Natalia",
+            "businessName": "Rockeala Peluqueria Natalia",
+            "area": "Peluqueria",
+            "name": "Corte",
+            "description": "Servicio rapido para mantenimiento y cambio de look.",
+            "price": 12000,
+            "currency": "ARS",
+            "durationMinutes": 20,
+            "publicVisible": true,
+            "sortOrder": 1,
+            "createdAt": "2026-06-05T12:00:00.000Z",
+            "updatedAt": "2026-06-05T12:00:00.000Z"
+          }
+        },
+        {
+          "id": "svc-tintura-natalia",
+          "data": {
+            "adminId": "demo-natalia",
+            "adminName": "Peluqueria Natalia",
+            "businessName": "Rockeala Peluqueria Natalia",
+            "area": "Peluqueria",
+            "name": "Tintura",
+            "description": "Coloracion completa con duracion estimada configurable.",
+            "price": 30000,
+            "currency": "ARS",
+            "durationMinutes": 60,
+            "publicVisible": true,
+            "sortOrder": 2,
+            "createdAt": "2026-06-05T12:00:00.000Z",
+            "updatedAt": "2026-06-05T12:00:00.000Z"
+          }
+        },
+        {
+          "id": "svc-semi",
+          "data": {
+            "adminId": "demo-manicura",
+            "adminName": "Manicura",
+            "businessName": "Rockeala Manicura",
+            "area": "Manicura",
+            "name": "Semipermanente",
+            "description": "Color, preparacion y terminacion en una sola reserva.",
+            "price": 14500,
+            "currency": "ARS",
+            "durationMinutes": 50,
+            "publicVisible": true,
+            "sortOrder": 3,
+            "createdAt": "2026-06-05T12:00:00.000Z",
+            "updatedAt": "2026-06-05T12:00:00.000Z"
+          }
+        }
+      ],
+      "clientes": [
+        {
+          "id": "client-ana-lopez",
+          "data": {
+            "adminId": "demo-natalia",
+            "adminIds": ["demo-natalia"],
+            "fullName": "Ana Lopez",
+            "phone": "11 5555 1111",
+            "phoneSearch": "1155551111",
+            "email": "ana.lopez@demo.local",
+            "emailSearch": "ana.lopez@demo.local",
+            "notes": "Cliente frecuente de coloracion.",
+            "lastVisitAt": "2026-06-01T15:00:00.000Z",
+            "createdAt": "2026-05-15T12:00:00.000Z",
             "updatedAt": "2026-06-01T15:00:00.000Z"
           },
-          "treatments": [
-            {
-              "id": "2026-06-01-nutricion",
+          "adminProfiles": {
+            "demo-natalia": {
               "data": {
-                "type": "Nutricion",
-                "detail": "Nutricion profunda + toner",
-                "date": "2026-06-01",
-                "notes": "Cabello sensible en puntas",
+                "colorActual": "castano cobrizo",
+                "ultimoTratamiento": "nutricion profunda",
+                "cambioColor": "de rubio a cobrizo",
+                "volumenAguaOxigenada": 20,
+                "tratamientosAnteriores": "toner y nutricion",
+                "tratamientosConFormolFecha": "",
                 "updatedAt": "2026-06-01T15:00:00.000Z"
-              }
+              },
+              "treatments": [
+                {
+                  "id": "2026-06-01-nutricion",
+                  "data": {
+                    "type": "Nutricion",
+                    "detail": "Nutricion profunda + toner",
+                    "date": "2026-06-01",
+                    "notes": "Cabello sensible en puntas",
+                    "updatedAt": "2026-06-01T15:00:00.000Z"
+                  }
+                }
+              ]
             }
-          ]
+          }
         }
-      }
+      ],
+      "stock": [
+        {
+          "id": "stock-oxidante-20",
+          "data": {
+            "adminId": "demo-natalia",
+            "name": "Oxidante 20 vol",
+            "quantity": 3,
+            "price": 4800,
+            "brand": "Alfaparf",
+            "category": "coloracion",
+            "createdAt": "2026-06-01T12:00:00.000Z",
+            "updatedAt": "2026-06-05T13:00:00.000Z"
+          }
+        }
+      ],
+      "productos": [
+        {
+          "id": "product-shampoo-natalia",
+          "data": {
+            "adminId": "demo-natalia",
+            "name": "Shampoo nutritivo",
+            "quantity": 5,
+            "price": 18000,
+            "brand": "Wella",
+            "category": "cuidado capilar",
+            "description": "Limpieza suave para cabellos tratados.",
+            "createdAt": "2026-06-03T12:00:00.000Z",
+            "updatedAt": "2026-06-05T13:00:00.000Z"
+          }
+        }
+      ],
+      "turnos": [
+        {
+          "id": "appointment-ana-corte",
+          "data": {
+            "adminId": "demo-natalia",
+            "clientId": "client-ana-lopez",
+            "clientSnapshot": {
+              "fullName": "Ana Lopez",
+              "phone": "11 5555 1111",
+              "email": "ana.lopez@demo.local"
+            },
+            "serviceId": "svc-corte-natalia",
+            "serviceNameSnapshot": "Corte",
+            "serviceAreaSnapshot": "Peluqueria",
+            "requestedStartAt": "2026-06-07T14:00:00.000Z",
+            "estimatedDurationMinutes": 20,
+            "status": "pending",
+            "source": "public-web",
+            "notes": "Primera visita del mes",
+            "createdAt": "2026-06-05T15:00:00.000Z",
+            "updatedAt": "2026-06-05T15:00:00.000Z"
+          }
+        }
+      ],
+      "salonMedia": [],
+      "pagos": []
     },
     {
-      "id": "client-maria-sosa",
+      "id": "pruebacliente",
       "data": {
-        "adminIds": ["demo-manicura"],
-        "fullName": "Maria Sosa",
-        "phone": "11 5555 2222",
-        "phoneSearch": "1155552222",
-        "email": "maria.sosa@demo.local",
-        "emailSearch": "maria.sosa@demo.local",
-        "notes": "Prefiere tonos nude.",
-        "lastVisitAt": "2026-06-04T18:00:00.000Z",
-        "createdAt": "2026-05-20T12:00:00.000Z",
-        "updatedAt": "2026-06-04T18:00:00.000Z"
-      }
-    }
-  ],
-  "stock": [
-    {
-      "id": "stock-oxidante-20",
-      "data": {
-        "adminId": "demo-natalia",
-        "name": "Oxidante 20 vol",
-        "quantity": 3,
-        "price": 4800,
-        "brand": "Alfaparf",
-        "category": "coloracion",
-        "createdAt": "2026-06-01T12:00:00.000Z",
-        "updatedAt": "2026-06-05T13:00:00.000Z"
-      }
-    },
-    {
-      "id": "stock-esmalte-nude",
-      "data": {
-        "adminId": "demo-manicura",
-        "name": "Esmalte nude",
-        "quantity": 1,
-        "price": 3500,
-        "brand": "OPI",
-        "category": "esmaltes",
-        "createdAt": "2026-06-02T12:00:00.000Z",
-        "updatedAt": "2026-06-05T14:00:00.000Z"
-      }
-    }
-  ],
-  "productos": [
-    {
-      "id": "product-shampoo-natalia",
-      "data": {
-        "adminId": "demo-natalia",
-        "name": "Shampoo nutritivo",
-        "quantity": 5,
-        "price": 18000,
-        "brand": "Wella",
-        "category": "cuidado capilar",
-        "createdAt": "2026-06-03T12:00:00.000Z",
-        "updatedAt": "2026-06-05T13:00:00.000Z"
-      }
-    },
-    {
-      "id": "product-aceite-cuticulas",
-      "data": {
-        "adminId": "demo-manicura",
-        "name": "Aceite para cuticulas",
-        "quantity": 8,
-        "price": 9000,
-        "brand": "Meline",
-        "category": "post servicio",
-        "createdAt": "2026-06-03T12:00:00.000Z",
-        "updatedAt": "2026-06-05T14:00:00.000Z"
-      }
-    }
-  ],
-  "turnos": [
-    {
-      "id": "appointment-ana-corte",
-      "data": {
-        "adminId": "demo-natalia",
-        "clientId": "client-ana-lopez",
-        "clientSnapshot": {
-          "fullName": "Ana Lopez",
-          "phone": "11 5555 1111",
-          "email": "ana.lopez@demo.local"
+        "name": "Prueba Cliente",
+        "slug": "pruebacliente",
+        "businessName": "Prueba Cliente Studio",
+        "active": true,
+        "publicEnabled": true,
+        "adminEnabled": true,
+        "customDomain": "",
+        "timezone": "America/Argentina/Buenos_Aires",
+        "whatsAppPhone": "54 9 11 4000-1111",
+        "whatsAppMessage": "Hola, quiero reservar en Prueba Cliente Studio."
+      },
+      "admins": [
+        {
+          "id": "demo-prueba-owner",
+          "data": {
+            "displayName": "Sofia Test",
+            "businessName": "Prueba Cliente Studio",
+            "area": "Peluqueria",
+            "publicArea": "Peluqueria",
+            "role": "peluqueria",
+            "specialtyKey": "peluqueria",
+            "membershipRole": "owner",
+            "email": "sofia@pruebacliente.local",
+            "emailNormalized": "sofia@pruebacliente.local",
+            "active": true,
+            "publicBookingEnabled": true,
+            "timezone": "America/Argentina/Buenos_Aires",
+            "slug": "sofia-test",
+            "canManageAdminAccess": true
+          }
         },
-        "serviceId": "svc-corte-natalia",
-        "serviceNameSnapshot": "Corte",
-        "serviceAreaSnapshot": "Peluqueria",
-        "requestedStartAt": "2026-06-07T14:00:00.000Z",
-        "estimatedDurationMinutes": 20,
-        "status": "pending",
-        "source": "public-web",
-        "notes": "Primera visita del mes",
-        "createdAt": "2026-06-05T15:00:00.000Z",
-        "updatedAt": "2026-06-05T15:00:00.000Z"
-      }
-    },
-    {
-      "id": "appointment-maria-semi",
-      "data": {
-        "adminId": "demo-manicura",
-        "clientId": "client-maria-sosa",
-        "clientSnapshot": {
-          "fullName": "Maria Sosa",
-          "phone": "11 5555 2222",
-          "email": "maria.sosa@demo.local"
+        {
+          "id": "demo-prueba-lashes",
+          "data": {
+            "displayName": "Mica Beauty",
+            "businessName": "Prueba Cliente Studio",
+            "area": "Estetica",
+            "publicArea": "Estetica",
+            "role": "depilacion",
+            "specialtyKey": "depilacion",
+            "membershipRole": "professional",
+            "email": "mica@pruebacliente.local",
+            "emailNormalized": "mica@pruebacliente.local",
+            "active": true,
+            "publicBookingEnabled": true,
+            "timezone": "America/Argentina/Buenos_Aires",
+            "slug": "mica-beauty"
+          }
+        }
+      ],
+      "servicios": [
+        {
+          "id": "svc-prueba-color",
+          "data": {
+            "adminId": "demo-prueba-owner",
+            "adminName": "Sofia Test",
+            "businessName": "Prueba Cliente Studio",
+            "area": "Peluqueria",
+            "name": "Color global",
+            "description": "Aplicacion completa con diagnostico previo.",
+            "price": 26000,
+            "currency": "ARS",
+            "durationMinutes": 90,
+            "publicVisible": true,
+            "sortOrder": 1,
+            "createdAt": "2026-06-05T12:00:00.000Z",
+            "updatedAt": "2026-06-05T12:00:00.000Z"
+          }
         },
-        "serviceId": "svc-semi",
-        "serviceNameSnapshot": "Semipermanente",
-        "serviceAreaSnapshot": "Manicura",
-        "requestedStartAt": "2026-06-08T16:30:00.000Z",
-        "estimatedDurationMinutes": 50,
-        "status": "confirmed",
-        "source": "panel",
-        "notes": "Trae referencia de color",
-        "createdAt": "2026-06-05T16:00:00.000Z",
-        "updatedAt": "2026-06-05T16:00:00.000Z"
-      }
+        {
+          "id": "svc-prueba-cejas",
+          "data": {
+            "adminId": "demo-prueba-lashes",
+            "adminName": "Mica Beauty",
+            "businessName": "Prueba Cliente Studio",
+            "area": "Estetica",
+            "name": "Perfilado de cejas",
+            "description": "Definicion suave para una visita breve.",
+            "price": 9500,
+            "currency": "ARS",
+            "durationMinutes": 25,
+            "publicVisible": true,
+            "sortOrder": 2,
+            "createdAt": "2026-06-05T12:00:00.000Z",
+            "updatedAt": "2026-06-05T12:00:00.000Z"
+          }
+        }
+      ],
+      "clientes": [
+        {
+          "id": "client-prueba-lucia",
+          "data": {
+            "adminId": "demo-prueba-owner",
+            "adminIds": ["demo-prueba-owner"],
+            "fullName": "Lucia Perez",
+            "phone": "11 4444 2222",
+            "phoneSearch": "1144442222",
+            "email": "lucia@demo.local",
+            "emailSearch": "lucia@demo.local",
+            "notes": "Prefiere agenda por la tarde.",
+            "lastVisitAt": "2026-06-04T18:00:00.000Z",
+            "createdAt": "2026-06-01T12:00:00.000Z",
+            "updatedAt": "2026-06-04T18:00:00.000Z"
+          }
+        }
+      ],
+      "stock": [
+        {
+          "id": "stock-prueba-color",
+          "data": {
+            "adminId": "demo-prueba-owner",
+            "name": "Tintura ceniza 7.1",
+            "quantity": 4,
+            "price": 6200,
+            "brand": "Lorea",
+            "category": "coloracion",
+            "createdAt": "2026-06-03T12:00:00.000Z",
+            "updatedAt": "2026-06-05T14:00:00.000Z"
+          }
+        }
+      ],
+      "productos": [
+        {
+          "id": "product-prueba-mascara",
+          "data": {
+            "adminId": "demo-prueba-owner",
+            "name": "Mascara nutritiva",
+            "quantity": 6,
+            "price": 21000,
+            "brand": "Studio Care",
+            "category": "cuidado capilar",
+            "description": "Tratamiento intensivo para uso semanal.",
+            "createdAt": "2026-06-03T12:00:00.000Z",
+            "updatedAt": "2026-06-05T14:00:00.000Z"
+          }
+        }
+      ],
+      "turnos": [
+        {
+          "id": "appointment-prueba-lucia",
+          "data": {
+            "adminId": "demo-prueba-owner",
+            "clientId": "client-prueba-lucia",
+            "clientSnapshot": {
+              "fullName": "Lucia Perez",
+              "phone": "11 4444 2222",
+              "email": "lucia@demo.local"
+            },
+            "serviceId": "svc-prueba-color",
+            "serviceNameSnapshot": "Color global",
+            "serviceAreaSnapshot": "Peluqueria",
+            "requestedStartAt": "2026-06-09T15:00:00.000Z",
+            "estimatedDurationMinutes": 90,
+            "status": "confirmed",
+            "source": "panel",
+            "notes": "Cliente de prueba",
+            "createdAt": "2026-06-05T16:00:00.000Z",
+            "updatedAt": "2026-06-05T16:00:00.000Z"
+          }
+        }
+      ],
+      "salonMedia": [],
+      "pagos": []
     }
   ]
 }

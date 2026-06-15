@@ -9,7 +9,9 @@
     "serve": "firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "seed:demo": "node ./scripts/seed-firestore.js"
+    "seed:demo": "node ./scripts/seed-firestore.js",
+    "migrate:tenants": "node ./scripts/migrate-to-tenants.js",
+    "sync:plans": "node ./scripts/sync-plans.js"
   },
   "dependencies": {
     "firebase-admin": "^13.10.0",

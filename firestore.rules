@@ -5,26 +5,68 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function adminProfileExists() {
+    function tenantExists(tenantId) {
+      return exists(/databases/$(database)/documents/tenants/$(tenantId));
+    }
+
+    function tenantData(tenantId) {
+      return get(/databases/$(database)/documents/tenants/$(tenantId)).data;
+    }
+
+    function tenantIsActive(tenantId) {
+      return tenantExists(tenantId)
+        && tenantData(tenantId).active == true;
+    }
+
+    function tenantPublicEnabled(tenantId) {
+      return tenantIsActive(tenantId)
+        && tenantData(tenantId).publicEnabled == true;
+    }
+
+    function tenantAdminEnabled(tenantId) {
+      return tenantIsActive(tenantId)
+        && tenantData(tenantId).adminEnabled == true;
+    }
+
+    function tenantAdminProfileExists(tenantId) {
       return signedIn()
-        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+        && exists(/databases/$(database)/documents/tenants/$(tenantId)/admins/$(request.auth.uid));
     }
 
-    function activeAdmin() {
-      return adminProfileExists()
-        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active == true;
+    function tenantAdminData(tenantId) {
+      return get(/databases/$(database)/documents/tenants/$(tenantId)/admins/$(request.auth.uid)).data;
     }
 
-    function ownsAdmin(adminId) {
-      return activeAdmin() && request.auth.uid == adminId;
+    function activeTenantAdmin(tenantId) {
+      return tenantAdminEnabled(tenantId)
+        && tenantAdminProfileExists(tenantId)
+        && tenantAdminData(tenantId).active == true;
     }
 
-    function ownsOwnAdminProfile(adminId) {
-      return signedIn() && request.auth.uid == adminId;
+    function ownsTenantAdmin(tenantId, adminId) {
+      return activeTenantAdmin(tenantId) && request.auth.uid == adminId;
+    }
+
+    function ownsOwnTenantAdminProfile(tenantId, adminId) {
+      return tenantAdminEnabled(tenantId)
+        && signedIn()
+        && request.auth.uid == adminId;
+    }
+
+    function canManagePrincipalSections(tenantId) {
+      return activeTenantAdmin(tenantId)
+        && (
+          tenantAdminData(tenantId).canManageAdminAccess == true
+          || tenantAdminData(tenantId).membershipRole == "owner"
+          || tenantAdminData(tenantId).membershipRole == "admin"
+          || request.auth.token.email == "37adrian38@gmail.com"
+          || request.auth.token.email == "nataliasoledadromero27@gmail.com"
+        );
     }
 
     function adminEditableKeys() {
       return [
+        "tenantId",
         "displayName",
         "businessName",
         "area",
@@ -37,113 +79,220 @@ service cloud.firestore {
       ];
     }
 
-    function ownsClient(adminIds) {
-      return activeAdmin()
+    function ownsTenantClient(tenantId, adminIds) {
+      return activeTenantAdmin(tenantId)
         && adminIds is list
         && request.auth.uid in adminIds;
     }
 
-    match /admins/{adminId} {
-      allow read: if ownsOwnAdminProfile(adminId);
-      allow create: if false;
-      allow update: if ownsOwnAdminProfile(adminId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(adminEditableKeys())
-        && (!("active" in resource.data) || request.resource.data.active == resource.data.active)
-        && (!("publicBookingEnabled" in resource.data) || request.resource.data.publicBookingEnabled == resource.data.publicBookingEnabled)
-        && (!("email" in resource.data) || request.resource.data.email == resource.data.email)
-        && (!("createdAt" in resource.data) || request.resource.data.createdAt == resource.data.createdAt);
-      allow delete: if false;
+    function ownsPrimaryTenantClient(tenantId, adminId) {
+      return activeTenantAdmin(tenantId)
+        && adminId is string
+        && request.auth.uid == adminId;
+    }
 
-      match /config/{docId} {
-        allow read, write: if ownsAdmin(adminId);
+    match /tenants/{tenantId} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update, delete: if false;
+
+      match /admins/{adminId} {
+        allow read: if ownsOwnTenantAdminProfile(tenantId, adminId);
+        allow create: if false;
+        allow update: if ownsOwnTenantAdminProfile(tenantId, adminId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(adminEditableKeys())
+          && request.resource.data.tenantId == tenantId
+          && (!("active" in resource.data) || request.resource.data.active == resource.data.active)
+          && (!("publicBookingEnabled" in resource.data) || request.resource.data.publicBookingEnabled == resource.data.publicBookingEnabled)
+          && (!("email" in resource.data) || request.resource.data.email == resource.data.email)
+          && (!("createdAt" in resource.data) || request.resource.data.createdAt == resource.data.createdAt)
+          && (!("membershipRole" in resource.data) || request.resource.data.membershipRole == resource.data.membershipRole)
+          && (!("role" in resource.data) || request.resource.data.role == resource.data.role)
+          && (!("specialtyKey" in resource.data) || request.resource.data.specialtyKey == resource.data.specialtyKey)
+          && (!("canManageAdminAccess" in resource.data) || request.resource.data.canManageAdminAccess == resource.data.canManageAdminAccess);
+        allow delete: if false;
+
+        match /config/{docId} {
+          allow read, write: if ownsTenantAdmin(tenantId, adminId);
+        }
+
+        match /availability/{docId} {
+          allow read, write: if ownsTenantAdmin(tenantId, adminId);
+        }
+
+        match /catalogSettings/{docId} {
+          allow read, write: if ownsTenantAdmin(tenantId, adminId);
+        }
       }
 
-      match /availability/{docId} {
-        allow read, write: if ownsAdmin(adminId);
+      match /adminInvites/{inviteId} {
+        allow read, write: if false;
       }
 
-      match /catalogSettings/{docId} {
-        allow read, write: if ownsAdmin(adminId);
+      match /servicios/{serviceId} {
+        allow read: if (tenantPublicEnabled(tenantId) && resource.data.publicVisible == true)
+          || (activeTenantAdmin(tenantId) && resource.data.adminId == request.auth.uid);
+
+        allow create: if activeTenantAdmin(tenantId)
+          && request.resource.data.tenantId == tenantId
+          && request.resource.data.adminId == request.auth.uid
+          && request.resource.data.name is string
+          && (request.resource.data.price is int || request.resource.data.price is float)
+          && request.resource.data.durationMinutes is int
+          && request.resource.data.durationMinutes > 0;
+
+        allow update: if activeTenantAdmin(tenantId)
+          && resource.data.adminId == request.auth.uid
+          && request.resource.data.tenantId == tenantId
+          && request.resource.data.adminId == resource.data.adminId
+          && request.resource.data.durationMinutes is int
+          && request.resource.data.durationMinutes > 0;
+
+        allow delete: if activeTenantAdmin(tenantId) && resource.data.adminId == request.auth.uid;
+      }
+
+      match /salonMedia/{mediaId} {
+        allow read: if (tenantPublicEnabled(tenantId) && resource.data.visible == true)
+          || canManagePrincipalSections(tenantId);
+
+        allow create: if canManagePrincipalSections(tenantId)
+          && request.resource.data.tenantId == tenantId
+          && request.resource.data.imageUrl is string
+          && request.resource.data.imageStoragePath is string
+          && request.resource.data.visible is bool;
+
+        allow update: if canManagePrincipalSections(tenantId)
+          && request.resource.data.tenantId == tenantId
+          && request.resource.data.imageUrl is string
+          && request.resource.data.imageStoragePath is string
+          && request.resource.data.visible is bool;
+
+        allow delete: if canManagePrincipalSections(tenantId);
+      }
+
+      match /turnos/{appointmentId} {
+        allow read: if activeTenantAdmin(tenantId) && resource.data.adminId == request.auth.uid;
+        allow create: if false;
+        allow update: if activeTenantAdmin(tenantId)
+          && resource.data.adminId == request.auth.uid
+          && request.resource.data.tenantId == tenantId
+          && request.resource.data.adminId == resource.data.adminId;
+        allow delete: if activeTenantAdmin(tenantId) && resource.data.adminId == request.auth.uid;
+      }
+
+      match /clientes/{clientId} {
+        allow get: if ownsPrimaryTenantClient(tenantId, resource.data.adminId)
+          || ownsTenantClient(tenantId, resource.data.adminIds);
+        allow list: if ownsPrimaryTenantClient(tenantId, resource.data.adminId);
+        allow create: if request.resource.data.tenantId == tenantId
+          && ownsPrimaryTenantClient(tenantId, request.resource.data.adminId)
+          && ownsTenantClient(tenantId, request.resource.data.adminIds);
+        allow update: if request.resource.data.tenantId == tenantId
+          && ownsPrimaryTenantClient(tenantId, resource.data.adminId)
+          && ownsPrimaryTenantClient(tenantId, request.resource.data.adminId)
+          && ownsTenantClient(tenantId, resource.data.adminIds)
+          && ownsTenantClient(tenantId, request.resource.data.adminIds);
+        allow delete: if ownsPrimaryTenantClient(tenantId, resource.data.adminId)
+          && ownsTenantClient(tenantId, resource.data.adminIds);
+
+        match /perfilesAdmin/{adminId} {
+          allow read, write: if ownsTenantAdmin(tenantId, adminId);
+
+          match /tratamientos/{treatmentId} {
+            allow read, write: if ownsTenantAdmin(tenantId, adminId);
+          }
+        }
+      }
+
+      match /stock/{stockId} {
+        allow read: if activeTenantAdmin(tenantId) && resource.data.adminId == request.auth.uid;
+        allow create: if activeTenantAdmin(tenantId)
+          && request.resource.data.tenantId == tenantId
+          && request.resource.data.adminId == request.auth.uid
+          && request.resource.data.name is string
+          && request.resource.data.quantity is int;
+        allow update: if activeTenantAdmin(tenantId)
+          && resource.data.adminId == request.auth.uid
+          && request.resource.data.tenantId == tenantId
+          && request.resource.data.adminId == resource.data.adminId;
+        allow delete: if activeTenantAdmin(tenantId) && resource.data.adminId == request.auth.uid;
+      }
+
+      match /productos/{productId} {
+        allow read: if tenantPublicEnabled(tenantId)
+          || (activeTenantAdmin(tenantId) && resource.data.adminId == request.auth.uid);
+        allow create: if activeTenantAdmin(tenantId)
+          && request.resource.data.tenantId == tenantId
+          && request.resource.data.adminId == request.auth.uid
+          && request.resource.data.name is string
+          && (request.resource.data.price is int || request.resource.data.price is float);
+        allow update: if activeTenantAdmin(tenantId)
+          && resource.data.adminId == request.auth.uid
+          && request.resource.data.tenantId == tenantId
+          && request.resource.data.adminId == resource.data.adminId;
+        allow delete: if activeTenantAdmin(tenantId) && resource.data.adminId == request.auth.uid;
+      }
+
+      match /pagos/{paymentId} {
+        allow read: if activeTenantAdmin(tenantId) && resource.data.adminId == request.auth.uid;
+        allow create: if activeTenantAdmin(tenantId)
+          && request.resource.data.tenantId == tenantId
+          && request.resource.data.adminId == request.auth.uid;
+        allow update: if activeTenantAdmin(tenantId)
+          && resource.data.adminId == request.auth.uid
+          && request.resource.data.tenantId == tenantId
+          && request.resource.data.adminId == resource.data.adminId;
+        allow delete: if activeTenantAdmin(tenantId) && resource.data.adminId == request.auth.uid;
       }
     }
 
-    match /servicios/{serviceId} {
-      allow read: if resource.data.publicVisible == true
-        || (activeAdmin() && resource.data.adminId == request.auth.uid);
-
-      allow create: if activeAdmin()
-        && request.resource.data.adminId == request.auth.uid
-        && request.resource.data.name is string
-        && (request.resource.data.price is int || request.resource.data.price is float)
-        && request.resource.data.durationMinutes is int
-        && request.resource.data.durationMinutes > 0;
-
-      allow update: if activeAdmin()
-        && resource.data.adminId == request.auth.uid
-        && request.resource.data.adminId == resource.data.adminId
-        && request.resource.data.durationMinutes is int
-        && request.resource.data.durationMinutes > 0;
-
-      allow delete: if activeAdmin() && resource.data.adminId == request.auth.uid;
+    match /planes/{planId} {
+      allow get, list: if resource.data.enabled == true;
+      allow create, update, delete: if false;
     }
 
-    match /turnos/{appointmentId} {
-      allow read: if activeAdmin() && resource.data.adminId == request.auth.uid;
-      allow create: if false;
-      allow update: if activeAdmin()
-        && resource.data.adminId == request.auth.uid
-        && request.resource.data.adminId == resource.data.adminId;
-      allow delete: if activeAdmin() && resource.data.adminId == request.auth.uid;
+    match /admins/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /adminInvites/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /servicios/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /salonMedia/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /turnos/{documentId} {
+      allow read, write: if false;
     }
 
     match /clientes/{clientId} {
-      allow read: if ownsClient(resource.data.adminIds);
-      allow create: if ownsClient(request.resource.data.adminIds);
-      allow update: if ownsClient(resource.data.adminIds)
-        && ownsClient(request.resource.data.adminIds);
-      allow delete: if false;
+      allow read, write: if false;
 
       match /perfilesAdmin/{adminId} {
-        allow read, write: if ownsAdmin(adminId);
+        allow read, write: if false;
 
         match /tratamientos/{treatmentId} {
-          allow read, write: if ownsAdmin(adminId);
+          allow read, write: if false;
         }
       }
     }
 
-    match /stock/{stockId} {
-      allow read: if activeAdmin() && resource.data.adminId == request.auth.uid;
-      allow create: if activeAdmin()
-        && request.resource.data.adminId == request.auth.uid
-        && request.resource.data.name is string
-        && request.resource.data.quantity is int;
-      allow update: if activeAdmin()
-        && resource.data.adminId == request.auth.uid
-        && request.resource.data.adminId == resource.data.adminId;
-      allow delete: if activeAdmin() && resource.data.adminId == request.auth.uid;
+    match /stock/{documentId} {
+      allow read, write: if false;
     }
 
-    match /productos/{productId} {
-      allow read: if activeAdmin() && resource.data.adminId == request.auth.uid;
-      allow create: if activeAdmin()
-        && request.resource.data.adminId == request.auth.uid
-        && request.resource.data.name is string
-        && (request.resource.data.price is int || request.resource.data.price is float);
-      allow update: if activeAdmin()
-        && resource.data.adminId == request.auth.uid
-        && request.resource.data.adminId == resource.data.adminId;
-      allow delete: if activeAdmin() && resource.data.adminId == request.auth.uid;
+    match /productos/{documentId} {
+      allow read, write: if false;
     }
 
-    match /pagos/{paymentId} {
-      allow read: if activeAdmin() && resource.data.adminId == request.auth.uid;
-      allow create: if activeAdmin()
-        && request.resource.data.adminId == request.auth.uid;
-      allow update: if activeAdmin()
-        && resource.data.adminId == request.auth.uid
-        && request.resource.data.adminId == resource.data.adminId;
-      allow delete: if activeAdmin() && resource.data.adminId == request.auth.uid;
+    match /pagos/{documentId} {
+      allow read, write: if false;
     }
   }
 }

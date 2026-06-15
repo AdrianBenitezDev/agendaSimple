@@ -4,16 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rockeala Admin</title>
-  <link rel="icon" type="image/webp" href="./rockeala_icon.webp">
+  <link rel="icon" type="image/webp" href="/rockeala_icon.webp">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <header class="top-banner" id="top-banner">
    
       <section class="session-panel">
+      
+
         <div class="session-brand" aria-label="Identidad del panel">
           <strong class="session-brand__title">Rockeala Admin</strong>
           <span class="session-brand__subtitle">Panel del negocio</span>
@@ -60,17 +62,23 @@
 
   <div class="toast-stack" aria-live="polite" aria-atomic="true">
     <p class="status-message" id="auth-message"></p>
+    <p class="status-message" id="profile-message"></p>
   </div>
 
   <main class="content-shell">
-    <div class="guest-banner" id="guest-banner" hidden>
-      <strong>Bienvenido al panel de Rockeala</strong>
-    </div>
+
     <div class="private-shell" id="private-shell">
       <div id="view-root"></div>
     </div>
   </main>
 
-  <script type="module" src="./app.js"></script>
+  <footer class="admin-footer">
+    <div class="admin-footer__inner">
+      <p class="admin-footer__copy">Rockeala Admin</p>
+      <a class="admin-footer__link" target="_blank" href="https://rockeala.com.ar/" rel="noreferrer">Ir a rockeala.com.ar</a>
+    </div>
+  </footer>
+
+  <script type="module" src="/app.js"></script>
 </body>
 </html>

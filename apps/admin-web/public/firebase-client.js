@@ -1,5 +1,5 @@
 import { firebaseConfig, isFirebaseConfigured } from "./firebase-config.js";
-import { getAuth, getStorage, initializeApp, initializeFirestore } from "./firebase-sdk.js";
+import { getAuth, getFunctions, getStorage, initializeApp, initializeFirestore } from "./firebase-sdk.js";
 
 export const firebaseReady = isFirebaseConfigured();
 
@@ -11,4 +11,5 @@ const firestoreSettings = {
 
 export const auth = firebaseApp ? getAuth(firebaseApp) : null;
 export const db = firebaseApp ? initializeFirestore(firebaseApp, firestoreSettings) : null;
+export const functions = firebaseApp ? getFunctions(firebaseApp, "southamerica-east1") : null;
 export const storage = firebaseApp ? getStorage(firebaseApp) : null;

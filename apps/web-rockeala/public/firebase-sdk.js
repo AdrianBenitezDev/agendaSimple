@@ -1,13 +1,5 @@
 export { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
 export {
-  browserLocalPersistence,
-  getAuth,
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  setPersistence,
-  signInWithPopup
-} from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
-export {
   collection,
   doc,
   getDoc,

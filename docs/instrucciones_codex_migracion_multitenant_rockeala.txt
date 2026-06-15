@@ -1,0 +1,652 @@
+PROMPT PARA CODEX - MIGRACION DEL PROYECTO ROCKEALA A MODELO MULTI-TENANT
+
+Contexto general
+----------------
+El proyecto Rockeala actualmente fue creado como una aplicación para un solo negocio. Hoy no diferencia negocios por tenants. Tiene perfiles de administradores/profesionales, pero esos perfiles están pensados dentro de un negocio global.
+
+La arquitectura actual usa Firebase Hosting multisite, Firebase Auth con Google para el panel admin, Firestore como base principal, Cloud Functions v2 en southamerica-east1, Storage y emuladores.
+
+Actualmente el modelo central usa colecciones raíz como:
+
+- admins/{uid}
+- servicios/{serviceId}
+- turnos/{appointmentId}
+- clientes/{clientId}
+- stock/{stockId}
+- productos/{productId}
+- pagos/{paymentId}
+- salonMedia/{mediaId}
+- adminInvites/{email}
+
+El problema es que muchas colecciones dependen de `adminId`, que hoy equivale al `uid` del usuario autenticado. Eso separa profesionales/usuarios, pero no separa negocios. Ahora necesito evolucionar el proyecto para que varios negocios/clientes puedan usar el sistema dentro del mismo proyecto Firebase.
+
+Objetivo principal
+------------------
+Migrar el proyecto a un modelo multi-tenant donde cada negocio tenga su propio tenant.
+
+Ejemplo de tenant:
+
+- tenantId: pruebaCliente
+
+URLs esperadas:
+
+- Web pública del tenant:
+  https://dominio.com.ar/pruebaCliente
+
+- Web administradora del tenant:
+  https://admin.dominio.com.ar/pruebaCliente
+
+Además, necesito crear una copia de la app pública actual:
+
+- Copiar apps/public-web
+- Crear apps/web-rockeala
+- Esta copia se subirá a un hosting público independiente con dominio propio:
+  https://rockeala.com.ar
+
+La app `web-rockeala` debe consumir siempre un tenant fijo, por ejemplo:
+
+- tenantId: rockeala
+
+Esta será una excepción de dominio propio para un cliente específico. La app pública normal seguirá funcionando por rutas tipo /pruebaCliente.
+
+Decisión de arquitectura requerida
+----------------------------------
+No quiero que el sistema siga separando solo por `adminId`. A partir de ahora la separación principal debe ser por `tenantId`.
+
+Reestructurar el modelo hacia algo similar a:
+
+tenants/{tenantId}
+  - name
+  - slug
+  - businessName
+  - active
+  - publicEnabled
+  - adminEnabled
+  - customDomain
+  - timezone
+  - createdAt
+  - updatedAt
+
+tenants/{tenantId}/admins/{uid}
+tenants/{tenantId}/adminInvites/{email}
+tenants/{tenantId}/servicios/{serviceId}
+tenants/{tenantId}/turnos/{appointmentId}
+tenants/{tenantId}/clientes/{clientId}
+tenants/{tenantId}/stock/{stockId}
+tenants/{tenantId}/productos/{productId}
+tenants/{tenantId}/pagos/{paymentId}
+tenants/{tenantId}/salonMedia/{mediaId}
+
+Puntos importantes:
+
+1. `tenantId` representa el negocio.
+2. `uid` representa al usuario/admin/profesional dentro del negocio.
+3. Un negocio puede tener varios admins/profesionales.
+4. Los servicios, clientes, turnos, productos, stock, pagos y galería pertenecen a un tenant.
+5. Algunos documentos también pueden tener `adminId` para saber qué profesional los creó o los atiende, pero `adminId` ya no debe ser la frontera principal de seguridad.
+6. La frontera principal de seguridad debe ser `tenantId`.
+
+Resolver tenant desde URL
+-------------------------
+Crear una utilidad compartida para resolver el tenant actual según la URL.
+
+Para la web pública normal:
+
+- https://dominio.com.ar/pruebaCliente
+- tenantId = "pruebaCliente"
+
+Para la web administradora:
+
+- https://admin.dominio.com.ar/pruebaCliente
+- tenantId = "pruebaCliente"
+
+Para desarrollo local, permitir algo como:
+
+- http://localhost:5000/pruebaCliente
+- http://localhost:5000/?tenant=pruebaCliente
+
+Para la app `web-rockeala`:
+
+- tenantId fijo = "rockeala"
+- No debe depender de la ruta.
+- El dominio rockeala.com.ar siempre debe cargar datos del tenant `rockeala`.
+
+Crear archivos sugeridos:
+
+- apps/public-web/public/js/tenant.js
+- apps/admin-web/public/js/tenant.js
+- apps/web-rockeala/public/js/tenant.js
+
+O una utilidad compartida si el proyecto ya tiene una estructura común.
+
+Comportamiento esperado:
+
+- Si no hay tenant en la URL, mostrar una pantalla clara:
+  "Negocio no encontrado o URL incompleta".
+- Validar que exista `tenants/{tenantId}`.
+- Validar que `active == true`.
+- En web pública, validar también `publicEnabled == true`.
+- En admin, validar también `adminEnabled == true`.
+
+Cambios en Firestore
+--------------------
+Migrar lecturas y escrituras desde colecciones raíz hacia rutas por tenant.
+
+Ejemplos:
+
+Antes:
+
+servicios/{serviceId}
+
+Después:
+
+tenants/{tenantId}/servicios/{serviceId}
+
+Antes:
+
+productos/{productId}
+
+Después:
+
+tenants/{tenantId}/productos/{productId}
+
+Antes:
+
+salonMedia/{mediaId}
+
+Después:
+
+tenants/{tenantId}/salonMedia/{mediaId}
+
+Antes:
+
+admins/{uid}
+
+Después:
+
+tenants/{tenantId}/admins/{uid}
+
+Antes:
+
+turnos/{appointmentId}
+
+Después:
+
+tenants/{tenantId}/turnos/{appointmentId}
+
+Antes:
+
+clientes/{clientId}
+
+Después:
+
+tenants/{tenantId}/clientes/{clientId}
+
+Los documentos pueden conservar campos como `adminId`, `adminIds`, `createdByAdminId`, `updatedByAdminId`, etc., pero todas las consultas deben estar dentro del tenant actual.
+
+Cambios en Authentication / acceso admin
+----------------------------------------
+El login con Google se mantiene.
+
+Nuevo flujo esperado:
+
+1. El usuario entra a:
+   https://admin.dominio.com.ar/pruebaCliente
+
+2. El frontend resuelve:
+   tenantId = "pruebaCliente"
+
+3. El usuario inicia sesión con Google.
+
+4. El panel consulta:
+   tenants/{tenantId}/admins/{uid}
+
+5. Si existe y `active == true`, puede operar dentro de ese tenant.
+
+6. Si no existe, no debe acceder al panel de ese negocio.
+
+7. Si hay invitaciones, deben vivir dentro del tenant:
+   tenants/{tenantId}/adminInvites/{email}
+
+8. La función `claimManagedAdminAccess` debe reclamar invitaciones dentro del tenant actual.
+
+Importante:
+
+- Un mismo uid podría eventualmente pertenecer a más de un tenant.
+- Por eso no conviene mantener `admins/{uid}` como única fuente de verdad global.
+- El acceso debe verificarse siempre con tenantId + uid.
+
+Cambios en Cloud Functions
+--------------------------
+Actualizar las funciones actuales para trabajar con tenantId.
+
+Funciones afectadas:
+
+- listPublicAdminProfiles
+- createManagedAdminAccess
+- listManagedAdminAccess
+- claimManagedAdminAccess
+- submitAppointmentRequest
+
+Nuevo criterio general:
+
+- Las funciones públicas deben recibir `tenantId`.
+- Las funciones autenticadas deben recibir `tenantId` y validar que el usuario autenticado tenga permiso en `tenants/{tenantId}/admins/{uid}`.
+- Nunca confiar solo en el tenantId enviado por el cliente.
+- Verificar que exista `tenants/{tenantId}` y que esté activo.
+
+Ejemplo conceptual para callable pública:
+
+submitAppointmentRequest({ tenantId, adminId, serviceId, clientData, requestedStartAt, notes })
+
+Debe leer:
+
+- tenants/{tenantId}
+- tenants/{tenantId}/admins/{adminId}
+- tenants/{tenantId}/servicios/{serviceId}
+- tenants/{tenantId}/clientes
+- tenants/{tenantId}/turnos
+
+No debe leer colecciones raíz globales para datos operativos.
+
+Ejemplo conceptual para perfiles públicos:
+
+listPublicAdminProfiles({ tenantId })
+
+Debe leer:
+
+- tenants/{tenantId}/admins con active == true
+- tenants/{tenantId}/servicios con publicVisible == true
+
+Cambios en reglas de Firestore
+------------------------------
+Reescribir firestore.rules para proteger por tenant.
+
+Reglas esperadas conceptuales:
+
+- La web pública puede leer solo datos visibles del tenant:
+  - servicios públicos
+  - productos públicos si corresponde
+  - salonMedia visible
+  - admins activos con perfil público limitado, si corresponde
+
+- El panel admin puede leer/escribir solo si:
+  - request.auth != null
+  - existe tenants/{tenantId}/admins/{request.auth.uid}
+  - active == true
+
+- Un admin no debe poder leer ni escribir datos de otro tenant si no pertenece a ese tenant.
+
+- Los turnos no deben crearse directamente desde cliente si se mantiene la lógica sensible por Functions.
+  En ese caso:
+  - create directo en turnos: false
+  - se crean desde Cloud Functions con Admin SDK
+
+- Las invitaciones adminInvites no deben exponerse directamente al frontend si se manejan por Functions.
+
+Mantener la idea actual de roles:
+
+- owner
+- admin
+- professional
+- staff
+
+Pero ahora dentro de cada tenant.
+
+Ejemplo:
+
+tenants/{tenantId}/admins/{uid}
+  - role: "owner" | "admin" | "professional" | "staff"
+  - active: true
+  - canManageAdminAccess: true/false
+
+Cambios en Storage
+------------------
+Actualizar paths para separar archivos por tenant.
+
+Antes:
+
+admins/{uid}/profile/avatar.webp
+admins/{uid}/productos/{productId}/cover.webp
+admins/{uid}/salon/{salonMediaId}/slide.webp
+
+Después:
+
+tenants/{tenantId}/admins/{uid}/profile/avatar.webp
+tenants/{tenantId}/productos/{productId}/cover.webp
+tenants/{tenantId}/salon/{salonMediaId}/slide.webp
+
+Actualizar storage.rules para validar que el usuario autenticado pertenece al tenant antes de escribir.
+
+Lectura pública:
+
+- Permitir lectura pública solo para archivos asociados a contenido público del tenant, si corresponde.
+- Si es más simple para esta etapa, mantener URLs descargables generadas por Firebase Storage, pero proteger escrituras por tenant.
+
+Cambios en índices
+------------------
+Como las colecciones pasarán a subcolecciones dentro de tenants, revisar y actualizar firestore.indexes.json.
+
+Consultas esperadas por subcolección:
+
+- tenants/{tenantId}/servicios:
+  - publicVisible + area + sortOrder
+  - adminId + sortOrder
+
+- tenants/{tenantId}/turnos:
+  - adminId + requestedStartAt
+  - adminId + status + requestedStartAt
+
+- tenants/{tenantId}/clientes:
+  - adminIds array-contains + lastVisitAt
+  - adminIds array-contains + updatedAt
+
+- tenants/{tenantId}/stock:
+  - adminId + category + updatedAt
+  - adminId + updatedAt
+
+- tenants/{tenantId}/productos:
+  - adminId + updatedAt
+
+Si se usan collectionGroup queries, justificarlas y protegerlas bien. En principio prefiero consultas directas dentro del tenant.
+
+Cambios en app pública `public-web`
+-----------------------------------
+Actualizar la web pública para que:
+
+1. Resuelva tenant desde la URL.
+2. Valide que exista el tenant.
+3. Lea datos desde:
+   - tenants/{tenantId}/servicios
+   - tenants/{tenantId}/productos
+   - tenants/{tenantId}/salonMedia
+   - callable listPublicAdminProfiles({ tenantId })
+4. Envíe solicitudes de turno con:
+   - submitAppointmentRequest({ tenantId, ... })
+5. Si el tenant no existe o está inactivo, muestre una pantalla clara y no renderice datos de otro negocio.
+6. No debe haber datos globales compartidos entre negocios.
+
+URL esperada:
+
+https://dominio.com.ar/pruebaCliente
+
+Cambios en app administradora `admin-web`
+-----------------------------------------
+Actualizar el panel admin para que:
+
+1. Resuelva tenant desde la URL:
+   https://admin.dominio.com.ar/pruebaCliente
+
+2. Luego del login, consulte:
+   tenants/{tenantId}/admins/{uid}
+
+3. Si el usuario no pertenece al tenant, mostrar:
+   "No tenés acceso a este negocio."
+
+4. Todas las suscripciones y escrituras deben usar rutas dentro del tenant actual:
+   - tenants/{tenantId}/servicios
+   - tenants/{tenantId}/clientes
+   - tenants/{tenantId}/stock
+   - tenants/{tenantId}/productos
+   - tenants/{tenantId}/turnos
+   - tenants/{tenantId}/salonMedia
+
+5. Al crear documentos, guardar como mínimo:
+   - tenantId
+   - adminId
+   - createdAt
+   - updatedAt
+
+Aunque tenantId esté implícito en la ruta, guardarlo como campo puede ayudar para migraciones, exportaciones y debugging.
+
+6. Los permisos de administración de usuarios deben funcionar dentro del tenant:
+   - crear invitación
+   - listar invitaciones
+   - reclamar invitación
+   - listar admins del tenant
+
+Hosting y rutas
+---------------
+Actualizar firebase.json si hace falta para soportar rutas por tenant.
+
+Para publicWeb:
+
+- Debe permitir:
+  /pruebaCliente
+  /pruebaCliente/*
+  y servir index.html para que el frontend resuelva el tenant.
+
+Para adminWeb:
+
+- Debe permitir:
+  /pruebaCliente
+  /pruebaCliente/*
+  y servir index.html para que el frontend resuelva el tenant.
+
+Mantener cleanUrls si ya está funcionando.
+
+Crear copia `web-rockeala`
+--------------------------
+Crear una copia de:
+
+apps/public-web
+
+y llamarla:
+
+apps/web-rockeala
+
+Requisitos:
+
+1. Debe compartir la mayor cantidad posible de lógica con public-web, o al menos mantener estructura similar.
+2. Debe usar el mismo firebase-config del proyecto rockeala, salvo que el proyecto indique otra cosa.
+3. Debe resolver tenant fijo:
+   tenantId = "rockeala"
+4. No debe leer tenant desde ruta.
+5. Debe consumir:
+   - tenants/rockeala/servicios
+   - tenants/rockeala/productos
+   - tenants/rockeala/salonMedia
+   - listPublicAdminProfiles({ tenantId: "rockeala" })
+   - submitAppointmentRequest({ tenantId: "rockeala", ... })
+6. Preparar firebase.json y .firebaserc si se va a publicar como otro sitio Hosting dentro del mismo proyecto Firebase.
+7. El dominio público final será:
+   https://rockeala.com.ar
+
+Sugerencia de hosting target:
+
+- webRockeala -> site nuevo, por ejemplo `rockeala-public-custom` o el nombre que corresponda.
+
+No desplegar sin confirmación. Solo dejar preparado.
+
+Migración de datos
+------------------
+Crear script de migración, no hacerlo manualmente en el frontend.
+
+Archivo sugerido:
+
+functions/scripts/migrate-to-tenants.js
+
+Objetivo:
+
+1. Crear tenant demo:
+   tenants/pruebaCliente
+
+2. Crear tenant real:
+   tenants/rockeala
+
+3. Migrar datos actuales al tenant rockeala, ya que el sistema actual aparentemente corresponde al negocio Rockeala.
+
+Mapeo sugerido:
+
+admins/{uid}
+-> tenants/rockeala/admins/{uid}
+
+servicios/{id}
+-> tenants/rockeala/servicios/{id}
+
+turnos/{id}
+-> tenants/rockeala/turnos/{id}
+
+clientes/{id}
+-> tenants/rockeala/clientes/{id}
+
+clientes/{id}/perfilesAdmin/{adminId}
+-> tenants/rockeala/clientes/{id}/perfilesAdmin/{adminId}
+
+clientes/{id}/perfilesAdmin/{adminId}/tratamientos/{treatmentId}
+-> tenants/rockeala/clientes/{id}/perfilesAdmin/{adminId}/tratamientos/{treatmentId}
+
+stock/{id}
+-> tenants/rockeala/stock/{id}
+
+productos/{id}
+-> tenants/rockeala/productos/{id}
+
+pagos/{id}
+-> tenants/rockeala/pagos/{id}
+
+salonMedia/{id}
+-> tenants/rockeala/salonMedia/{id}
+
+adminInvites/{email}
+-> tenants/rockeala/adminInvites/{email}
+
+Requisitos del script:
+
+- Usar Admin SDK.
+- Ser idempotente.
+- No borrar datos originales en la primera etapa.
+- Agregar campo `tenantId: "rockeala"` en los documentos migrados.
+- Conservar `adminId` donde exista.
+- Conservar timestamps.
+- Bloquear ejecución en producción salvo variable explícita:
+  ROCKEALA_MIGRATE_ALLOW_PROD=true
+
+Estrategia recomendada:
+
+Etapa 1:
+- Crear modelo nuevo en paralelo.
+- Migrar datos actuales a tenants/rockeala.
+- Adaptar frontend y functions para leer del modelo nuevo.
+- No borrar colecciones raíz todavía.
+
+Etapa 2:
+- Probar en emuladores.
+- Probar en hosting preview.
+- Confirmar que:
+  - publicWeb funciona con /rockeala y /pruebaCliente
+  - adminWeb funciona con /rockeala y /pruebaCliente
+  - web-rockeala funciona con tenant fijo rockeala
+  - el login admin valida tenants/{tenantId}/admins/{uid}
+  - los turnos se crean dentro del tenant correcto
+
+Etapa 3:
+- Cuando todo esté estable, decidir si se eliminan colecciones raíz o quedan como backup temporal.
+
+Seed demo
+---------
+Actualizar el seed para que pueda crear datos multi-tenant.
+
+Modificar:
+
+functions/seed/demo-data.json
+functions/scripts/seed-firestore.js
+
+Nuevo seed esperado:
+
+- tenants/pruebaCliente
+- tenants/pruebaCliente/admins
+- tenants/pruebaCliente/servicios
+- tenants/pruebaCliente/productos
+- tenants/pruebaCliente/salonMedia
+- tenants/pruebaCliente/clientes
+- tenants/pruebaCliente/turnos
+- tenants/pruebaCliente/stock
+
+Y también permitir seed de:
+
+- tenants/rockeala
+
+Objetivo de pruebas
+-------------------
+Al terminar, deben poder probarse estos escenarios:
+
+1. Web pública tenant pruebaCliente:
+   https://dominio.com.ar/pruebaCliente
+
+2. Admin tenant pruebaCliente:
+   https://admin.dominio.com.ar/pruebaCliente
+
+3. Web pública tenant rockeala en ruta:
+   https://dominio.com.ar/rockeala
+
+4. Admin tenant rockeala:
+   https://admin.dominio.com.ar/rockeala
+
+5. Web pública con dominio propio Rockeala:
+   https://rockeala.com.ar
+   Esta debe consumir siempre tenants/rockeala.
+
+6. Un admin de rockeala no debe poder ver ni escribir datos de pruebaCliente.
+
+7. Un admin de pruebaCliente no debe poder ver ni escribir datos de rockeala.
+
+8. Si la URL no contiene tenant, no debe cargar datos globales por defecto.
+
+9. Si el tenant no existe, mostrar error claro.
+
+10. Si el tenant existe pero está inactivo, mostrar error claro.
+
+Archivos a revisar y modificar
+------------------------------
+Revisar como mínimo:
+
+- firebase.json
+- .firebaserc
+- firestore.rules
+- firestore.indexes.json
+- storage.rules
+- functions/src/index.js
+- functions/scripts/seed-firestore.js
+- functions/seed/demo-data.json
+- apps/public-web/public/firebase-config.js
+- apps/public-web/public/index.html
+- apps/public-web/public/js/*
+- apps/admin-web/public/firebase-config.js
+- apps/admin-web/public/index.html
+- apps/admin-web/public/js/*
+- Crear apps/web-rockeala
+
+Criterios de aceptación
+-----------------------
+La tarea se considera completa si:
+
+1. Existe modelo multi-tenant en Firestore bajo `tenants/{tenantId}`.
+2. La web pública normal funciona por ruta de tenant.
+3. El panel admin funciona por ruta de tenant.
+4. Las Cloud Functions reciben y validan tenantId.
+5. Las reglas de Firestore impiden cruces entre tenants.
+6. Storage separa archivos por tenant.
+7. Existe la copia `apps/web-rockeala`.
+8. `web-rockeala` usa tenant fijo `rockeala`.
+9. Existe script de migración desde modelo actual a `tenants/rockeala`.
+10. Existe seed/demo compatible con tenants.
+11. No se eliminan datos actuales en la primera etapa.
+12. Todo se puede probar en emuladores.
+13. No se realiza deploy a producción sin confirmación.
+
+Importante
+----------
+No resolver esto solo agregando un campo `tenantId` en colecciones raíz sin cambiar la seguridad. La separación debe ser real por tenant.
+
+El modelo actual por `adminId` sirve para profesionales/usuarios dentro de un negocio, pero no alcanza para múltiples negocios.
+
+La nueva jerarquía debe ser:
+
+tenant -> admins/profesionales -> datos del negocio
+
+No:
+
+admin global -> datos globales
+
+Antes de modificar, analizar el código y hacer una lista corta de archivos impactados. Luego implementar por etapas, priorizando seguridad, migración sin pérdida de datos y compatibilidad con emuladores.

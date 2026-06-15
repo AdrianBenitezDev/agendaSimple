@@ -61,26 +61,37 @@ function normalizeDateFields(payload) {
   return normalized;
 }
 
-async function seedCollection(batch, collectionName, docs = []) {
+function withTenantId(data, tenantId) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return data;
+  }
+
+  return {
+    tenantId,
+    ...data
+  };
+}
+
+async function seedTenantCollection(writer, tenantRef, tenantId, collectionName, docs = []) {
   docs.forEach((entry) => {
-    const ref = db.collection(collectionName).doc(entry.id);
-    batch.set(ref, normalizeDateFields(entry.data), { merge: true });
+    const ref = tenantRef.collection(collectionName).doc(entry.id);
+    writer.set(ref, normalizeDateFields(withTenantId(entry.data, tenantId)), { merge: true });
   });
 }
 
-async function seedClients(batch, clients = []) {
+async function seedTenantClients(writer, tenantRef, tenantId, clients = []) {
   clients.forEach((entry) => {
-    const clientRef = db.collection("clientes").doc(entry.id);
-    batch.set(clientRef, normalizeDateFields(entry.data), { merge: true });
+    const clientRef = tenantRef.collection("clientes").doc(entry.id);
+    writer.set(clientRef, normalizeDateFields(withTenantId(entry.data, tenantId)), { merge: true });
 
     Object.entries(entry.adminProfiles || {}).forEach(([adminId, profileData]) => {
       const profileRef = clientRef.collection("perfilesAdmin").doc(adminId);
-      batch.set(profileRef, normalizeDateFields(profileData.data), { merge: true });
+      writer.set(profileRef, normalizeDateFields(withTenantId(profileData.data, tenantId)), { merge: true });
 
       (profileData.treatments || []).forEach((treatment) => {
-        batch.set(
+        writer.set(
           profileRef.collection("tratamientos").doc(treatment.id),
-          normalizeDateFields(treatment.data),
+          normalizeDateFields(withTenantId(treatment.data, tenantId)),
           { merge: true }
         );
       });
@@ -88,25 +99,97 @@ async function seedClients(batch, clients = []) {
   });
 }
 
+async function seedTenants(seedData) {
+  const writer = db.bulkWriter();
+  const tenants = Array.isArray(seedData.tenants) ? seedData.tenants : [];
+
+  tenants.forEach((tenantEntry) => {
+    const tenantId = tenantEntry.id;
+    const tenantRef = db.collection("tenants").doc(tenantId);
+
+    writer.set(tenantRef, normalizeDateFields({
+      slug: tenantId,
+      active: true,
+      publicEnabled: true,
+      adminEnabled: true,
+      timezone: "America/Argentina/Buenos_Aires",
+      ...tenantEntry.data
+    }), { merge: true });
+
+    seedTenantCollection(writer, tenantRef, tenantId, "admins", tenantEntry.admins);
+    seedTenantCollection(writer, tenantRef, tenantId, "adminInvites", tenantEntry.adminInvites);
+    seedTenantCollection(writer, tenantRef, tenantId, "servicios", tenantEntry.servicios);
+    seedTenantCollection(writer, tenantRef, tenantId, "stock", tenantEntry.stock);
+    seedTenantCollection(writer, tenantRef, tenantId, "productos", tenantEntry.productos);
+    seedTenantCollection(writer, tenantRef, tenantId, "turnos", tenantEntry.turnos);
+    seedTenantCollection(writer, tenantRef, tenantId, "pagos", tenantEntry.pagos);
+    seedTenantCollection(writer, tenantRef, tenantId, "salonMedia", tenantEntry.salonMedia);
+    seedTenantClients(writer, tenantRef, tenantId, tenantEntry.clientes);
+  });
+
+  await writer.close();
+}
+
+async function seedLegacyCollections(seedData) {
+  const writer = db.bulkWriter();
+
+  (seedData.admins || []).forEach((entry) => {
+    writer.set(db.collection("admins").doc(entry.id), normalizeDateFields(entry.data), { merge: true });
+  });
+  (seedData.servicios || []).forEach((entry) => {
+    writer.set(db.collection("servicios").doc(entry.id), normalizeDateFields(entry.data), { merge: true });
+  });
+  (seedData.stock || []).forEach((entry) => {
+    writer.set(db.collection("stock").doc(entry.id), normalizeDateFields(entry.data), { merge: true });
+  });
+  (seedData.productos || []).forEach((entry) => {
+    writer.set(db.collection("productos").doc(entry.id), normalizeDateFields(entry.data), { merge: true });
+  });
+  (seedData.turnos || []).forEach((entry) => {
+    writer.set(db.collection("turnos").doc(entry.id), normalizeDateFields(entry.data), { merge: true });
+  });
+  (seedData.clientes || []).forEach((entry) => {
+    const clientRef = db.collection("clientes").doc(entry.id);
+    writer.set(clientRef, normalizeDateFields(entry.data), { merge: true });
+
+    Object.entries(entry.adminProfiles || {}).forEach(([adminId, profileData]) => {
+      const profileRef = clientRef.collection("perfilesAdmin").doc(adminId);
+      writer.set(profileRef, normalizeDateFields(profileData.data), { merge: true });
+
+      (profileData.treatments || []).forEach((treatment) => {
+        writer.set(
+          profileRef.collection("tratamientos").doc(treatment.id),
+          normalizeDateFields(treatment.data),
+          { merge: true }
+        );
+      });
+    });
+  });
+
+  await writer.close();
+}
+
 async function main() {
   const seedData = readSeedFile();
-  const batch = db.batch();
 
-  await seedCollection(batch, "admins", seedData.admins);
-  await seedCollection(batch, "servicios", seedData.servicios);
-  await seedCollection(batch, "stock", seedData.stock);
-  await seedCollection(batch, "productos", seedData.productos);
-  await seedCollection(batch, "turnos", seedData.turnos);
-  await seedClients(batch, seedData.clientes);
-  await batch.commit();
+  if (Array.isArray(seedData.tenants) && seedData.tenants.length > 0) {
+    await seedTenants(seedData);
 
-  console.log("Seed completado:");
-  console.log(`- admins: ${(seedData.admins || []).length}`);
-  console.log(`- servicios: ${(seedData.servicios || []).length}`);
-  console.log(`- clientes: ${(seedData.clientes || []).length}`);
-  console.log(`- stock: ${(seedData.stock || []).length}`);
-  console.log(`- productos: ${(seedData.productos || []).length}`);
-  console.log(`- turnos: ${(seedData.turnos || []).length}`);
+    const tenantSummary = seedData.tenants.map((tenantEntry) => {
+      const countServices = (tenantEntry.servicios || []).length;
+      const countProducts = (tenantEntry.productos || []).length;
+      const countClients = (tenantEntry.clientes || []).length;
+      return `- ${tenantEntry.id}: ${countServices} servicios, ${countProducts} productos, ${countClients} clientes`;
+    });
+
+    console.log("Seed multi-tenant completado:");
+    tenantSummary.forEach((line) => console.log(line));
+    console.log(`Destino: ${isEmulator ? "emulador" : "proyecto real"}`);
+    return;
+  }
+
+  await seedLegacyCollections(seedData);
+  console.log("Seed legacy completado.");
   console.log(`Destino: ${isEmulator ? "emulador" : "proyecto real"}`);
 }
 

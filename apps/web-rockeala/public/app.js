@@ -1327,7 +1327,7 @@ async function loadTenantContext() {
   const tenantId = resolvePublicTenantId();
 
   if (!tenantId) {
-    renderTenantFailure("Negocio no encontrado o URL incompleta.", "Abre una ruta como /rockeala o /pruebacliente para cargar un tenant valido.");
+    renderTenantFailure("Negocio no encontrado o URL incompleta.", "Abre una ruta como /rockeala o /pruebaCliente para cargar un tenant valido.");
     return false;
   }
 

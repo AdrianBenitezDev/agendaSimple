@@ -1,0 +1,362 @@
+{
+  "projectId": "rockeala",
+  "createdAt": "2026-06-15T02:45:02.844Z",
+  "firestore": {
+    "admins": [
+      {
+        "path": "admins/O5QcJ47lbDWNgdCd91Pf7Eq2BDu1",
+        "data": {
+          "area": "Peluqueria Natalia",
+          "role": "peluqueria",
+          "displayName": "Natalia Romero",
+          "timezone": "America/Argentina/Buenos_Aires",
+          "businessName": "Rockeala Peluqueria Natalia",
+          "active": true,
+          "publicArea": "Peluqueria",
+          "publicBookingEnabled": true,
+          "createdAt": {
+            "_seconds": 1781456647,
+            "_nanoseconds": 53000000
+          },
+          "emailNormalized": "nataliasoledadromero27@gmail.com",
+          "canManageAdminAccess": true,
+          "email": "nataliasoledadromero27@gmail.com",
+          "slug": "natalia",
+          "photoUrl": "https://firebasestorage.googleapis.com/v0/b/rockeala.firebasestorage.app/o/admins%2FO5QcJ47lbDWNgdCd91Pf7Eq2BDu1%2Fprofile%2Favatar.webp?alt=media&token=22ef74e4-89cc-4418-8ace-91cb193ed2d6",
+          "photoStoragePath": "admins/O5QcJ47lbDWNgdCd91Pf7Eq2BDu1/profile/avatar.webp",
+          "updatedAt": {
+            "_seconds": 1781459955,
+            "_nanoseconds": 355000000
+          }
+        },
+        "subcollections": {}
+      },
+      {
+        "path": "admins/ysdmttPn5YQk1SIlTiH8dgXOvbJ3",
+        "data": {
+          "area": "Servicios",
+          "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocLKT2PatjGImXDJRbMRtNAZvMgPkwHKXrGNh_ZUo9sj7UHKZw=s96-c",
+          "publicBookingEnabled": true,
+          "createdAt": {
+            "_seconds": 1780730861,
+            "_nanoseconds": 811000000
+          },
+          "displayName": "Adrian Benitez",
+          "timezone": "America/Argentina/Buenos_Aires",
+          "active": true,
+          "publicArea": "Servicios",
+          "email": "37adrian38@gmail.com",
+          "slug": "adrian-benitez",
+          "updatedAt": {
+            "_seconds": 1780730861,
+            "_nanoseconds": 811000000
+          },
+          "businessName": "Natalia"
+        },
+        "subcollections": {}
+      }
+    ],
+    "adminInvites": [],
+    "servicios": [
+      {
+        "path": "servicios/DKlyIQqcV2fmlW7oKvwa",
+        "data": {
+          "adminId": "ysdmttPn5YQk1SIlTiH8dgXOvbJ3",
+          "adminName": "Adrian Benitez",
+          "businessName": "Adrian Benitez",
+          "area": "Servicios",
+          "name": "reflejs",
+          "description": "bla bla bla",
+          "price": 4000,
+          "currency": "ARS",
+          "durationMinutes": 20,
+          "publicVisible": true,
+          "sortOrder": 2,
+          "createdAt": {
+            "_seconds": 1780864400,
+            "_nanoseconds": 170000000
+          },
+          "updatedAt": {
+            "_seconds": 1780864400,
+            "_nanoseconds": 170000000
+          }
+        },
+        "subcollections": {}
+      },
+      {
+        "path": "servicios/Mjgux1z9nVMWuPat6XxD",
+        "data": {
+          "adminId": "ysdmttPn5YQk1SIlTiH8dgXOvbJ3",
+          "adminName": "Adrian Benitez",
+          "businessName": "Adrian Benitez",
+          "area": "Servicios",
+          "name": "corte",
+          "description": "nose",
+          "price": 20000,
+          "currency": "ARS",
+          "durationMinutes": 20,
+          "publicVisible": true,
+          "sortOrder": 1,
+          "createdAt": {
+            "_seconds": 1780803589,
+            "_nanoseconds": 227000000
+          },
+          "updatedAt": {
+            "_seconds": 1780803589,
+            "_nanoseconds": 227000000
+          }
+        },
+        "subcollections": {}
+      }
+    ],
+    "turnos": [
+      {
+        "path": "turnos/bDxps3w15xjfoFD1W5J6",
+        "data": {
+          "adminId": "ysdmttPn5YQk1SIlTiH8dgXOvbJ3",
+          "clientId": "hWXoIz1HoQCOgH7skujX",
+          "clientSnapshot": {
+            "fullName": "jusa",
+            "phone": "12345678",
+            "email": "37qm38@gmail.com"
+          },
+          "serviceId": "DKlyIQqcV2fmlW7oKvwa",
+          "serviceNameSnapshot": "reflejs",
+          "serviceAreaSnapshot": "Servicios",
+          "requestedStartAt": {
+            "_seconds": 1781098200,
+            "_nanoseconds": 0
+          },
+          "estimatedDurationMinutes": 20,
+          "source": "public-web",
+          "notes": "sa sa sa sacusa sacusa",
+          "createdAt": {
+            "_seconds": 1780981392,
+            "_nanoseconds": 975000000
+          },
+          "status": "cancelled",
+          "updatedAt": {
+            "_seconds": 1780981474,
+            "_nanoseconds": 438000000
+          }
+        },
+        "subcollections": {}
+      },
+      {
+        "path": "turnos/yVqHUqqY1ds5r7i6XSVo",
+        "data": {
+          "adminId": "ysdmttPn5YQk1SIlTiH8dgXOvbJ3",
+          "clientId": "client-mamani-1781460193275",
+          "clientSnapshot": {
+            "fullName": "mamani",
+            "phone": "1122356678",
+            "email": "fdhn@ndn"
+          },
+          "serviceId": "DKlyIQqcV2fmlW7oKvwa",
+          "serviceNameSnapshot": "reflejs",
+          "serviceAreaSnapshot": "Servicios",
+          "requestedStartAt": {
+            "_seconds": 1781616600,
+            "_nanoseconds": 0
+          },
+          "estimatedDurationMinutes": 20,
+          "status": "pending",
+          "source": "public-web",
+          "notes": "",
+          "createdAt": {
+            "_seconds": 1781460193,
+            "_nanoseconds": 367000000
+          },
+          "updatedAt": {
+            "_seconds": 1781460193,
+            "_nanoseconds": 367000000
+          }
+        },
+        "subcollections": {}
+      }
+    ],
+    "clientes": [
+      {
+        "path": "clientes/7hEVlCYcXlFehi9pJrrv",
+        "data": {
+          "fullName": "maria",
+          "phone": "123456",
+          "phoneSearch": "123456",
+          "email": "37qm38@gmail.com",
+          "emailSearch": "37qm38@gmail.com",
+          "notes": "prueba de cliente",
+          "lastVisitAt": {
+            "_seconds": 1775390400,
+            "_nanoseconds": 0
+          },
+          "adminIds": [
+            "ysdmttPn5YQk1SIlTiH8dgXOvbJ3"
+          ],
+          "createdAt": {
+            "_seconds": 1780747898,
+            "_nanoseconds": 267000000
+          },
+          "updatedAt": {
+            "_seconds": 1780747898,
+            "_nanoseconds": 267000000
+          },
+          "adminId": "ysdmttPn5YQk1SIlTiH8dgXOvbJ3"
+        },
+        "subcollections": {}
+      },
+      {
+        "path": "clientes/client-mamani-1781460193275",
+        "data": {
+          "phoneSearch": "1122356678",
+          "createdAt": {
+            "_seconds": 1781460193,
+            "_nanoseconds": 309000000
+          },
+          "phone": "1122356678",
+          "adminIds": [
+            "ysdmttPn5YQk1SIlTiH8dgXOvbJ3"
+          ],
+          "adminId": "ysdmttPn5YQk1SIlTiH8dgXOvbJ3",
+          "fullName": "mamani",
+          "source": "public-web",
+          "preferredArea": "Servicios",
+          "emailSearch": "fdhn@ndn",
+          "email": "fdhn@ndn",
+          "updatedAt": {
+            "_seconds": 1781460193,
+            "_nanoseconds": 309000000
+          }
+        },
+        "subcollections": {}
+      },
+      {
+        "path": "clientes/hWXoIz1HoQCOgH7skujX",
+        "data": {
+          "phone": "12345678",
+          "phoneSearch": "12345678",
+          "notes": "es un cliente de prueba",
+          "lastVisitAt": {
+            "_seconds": 1780833600,
+            "_nanoseconds": 0
+          },
+          "adminIds": [
+            "ysdmttPn5YQk1SIlTiH8dgXOvbJ3"
+          ],
+          "createdAt": {
+            "_seconds": 1780856030,
+            "_nanoseconds": 640000000
+          },
+          "adminId": "ysdmttPn5YQk1SIlTiH8dgXOvbJ3",
+          "fullName": "jusa",
+          "source": "public-web",
+          "preferredArea": "Servicios",
+          "emailSearch": "37qm38@gmail.com",
+          "email": "37qm38@gmail.com",
+          "updatedAt": {
+            "_seconds": 1780981392,
+            "_nanoseconds": 895000000
+          }
+        },
+        "subcollections": {
+          "perfilesAdmin": [
+            {
+              "path": "clientes/hWXoIz1HoQCOgH7skujX/perfilesAdmin/ysdmttPn5YQk1SIlTiH8dgXOvbJ3",
+              "data": {
+                "tratamientosAnteriores": "alisado",
+                "tratamientosConFormolFecha": "2026-06-05",
+                "colorActual": "rubio",
+                "ultimoTratamiento": "botx capilar",
+                "cambioColor": "chocolate",
+                "volumenAguaOxigenada": 20,
+                "updatedAt": {
+                  "_seconds": 1780877324,
+                  "_nanoseconds": 820000000
+                }
+              },
+              "subcollections": {}
+            }
+          ]
+        }
+      },
+      {
+        "path": "clientes/k8nHvTpbQ1aLcIBS7xFw",
+        "data": {
+          "fullName": "maria benavidez",
+          "phone": "11223344",
+          "phoneSearch": "11223344",
+          "email": "asdsa@gjhbhfefherihfe",
+          "emailSearch": "asdsa@gjhbhfefherihfe",
+          "notes": "he3hfrhflejw",
+          "lastVisitAt": {
+            "_seconds": 1773057600,
+            "_nanoseconds": 0
+          },
+          "adminId": "O5QcJ47lbDWNgdCd91Pf7Eq2BDu1",
+          "adminIds": [
+            "O5QcJ47lbDWNgdCd91Pf7Eq2BDu1"
+          ],
+          "createdAt": {
+            "_seconds": 1781457705,
+            "_nanoseconds": 175000000
+          },
+          "updatedAt": {
+            "_seconds": 1781457705,
+            "_nanoseconds": 175000000
+          }
+        },
+        "subcollections": {
+          "perfilesAdmin": [
+            {
+              "path": "clientes/k8nHvTpbQ1aLcIBS7xFw/perfilesAdmin/O5QcJ47lbDWNgdCd91Pf7Eq2BDu1",
+              "data": {
+                "tratamientosAnteriores": "gfdjh",
+                "tratamientosConFormolFecha": "2026-06-14",
+                "colorActual": "6.11",
+                "ultimoTratamiento": "fjufjug,",
+                "cambioColor": "iyhjiñpo´ñh",
+                "volumenAguaOxigenada": 20,
+                "updatedAt": {
+                  "_seconds": 1781457705,
+                  "_nanoseconds": 391000000
+                }
+              },
+              "subcollections": {}
+            }
+          ]
+        }
+      }
+    ],
+    "stock": [
+      {
+        "path": "stock/CLVG0XBDrzHQFQDTMzTG",
+        "data": {
+          "adminId": "ysdmttPn5YQk1SIlTiH8dgXOvbJ3",
+          "name": "agua oxigenada",
+          "quantity": 3,
+          "price": 4000,
+          "brand": "lismont",
+          "category": "varios",
+          "createdAt": {
+            "_seconds": 1780867716,
+            "_nanoseconds": 475000000
+          },
+          "updatedAt": {
+            "_seconds": 1780867716,
+            "_nanoseconds": 475000000
+          }
+        },
+        "subcollections": {}
+      }
+    ],
+    "productos": [],
+    "pagos": [],
+    "salonMedia": []
+  },
+  "storage": {
+    "legacyAdminFiles": [
+      {
+        "name": "admins/O5QcJ47lbDWNgdCd91Pf7Eq2BDu1/profile/avatar.webp"
+      }
+    ]
+  }
+}

@@ -1,13 +1,66 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function tenantDocExists(tenantId) {
+      return firestore.exists(/databases/(default)/documents/tenants/$(tenantId));
+    }
+
+    function tenantDocData(tenantId) {
+      return firestore.get(/databases/(default)/documents/tenants/$(tenantId)).data;
+    }
+
+    function tenantAdminDocExists(tenantId) {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/admins/$(request.auth.uid));
+    }
+
+    function tenantAdminDocData(tenantId) {
+      return firestore.get(/databases/(default)/documents/tenants/$(tenantId)/admins/$(request.auth.uid)).data;
+    }
+
+    function activeTenantAdmin(tenantId) {
+      return tenantDocExists(tenantId)
+        && tenantDocData(tenantId).active == true
+        && tenantDocData(tenantId).adminEnabled == true
+        && tenantAdminDocExists(tenantId)
+        && tenantAdminDocData(tenantId).active == true;
+    }
+
+    function tenantAdminManager(tenantId) {
+      return activeTenantAdmin(tenantId)
+        && (
+          tenantAdminDocData(tenantId).canManageAdminAccess == true
+          || tenantAdminDocData(tenantId).membershipRole == "owner"
+          || tenantAdminDocData(tenantId).membershipRole == "admin"
+        );
+    }
+
     match /public/{allPaths=**} {
       allow read: if true;
       allow write: if false;
     }
 
+    match /tenants/{tenantId}/admins/{adminId}/profile/{allPaths=**} {
+      allow read: if true;
+      allow write: if activeTenantAdmin(tenantId) && request.auth.uid == adminId;
+    }
+
+    match /tenants/{tenantId}/productos/{productId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if activeTenantAdmin(tenantId);
+    }
+
+    match /tenants/{tenantId}/salon/{salonMediaId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if tenantAdminManager(tenantId);
+    }
+
     match /admins/{adminId}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == adminId;
+      allow read, write: if false;
     }
   }
 }

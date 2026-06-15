@@ -1,0 +1,618 @@
+Rockeala - contexto de la estructura Firebase
+Actualizado segun el repo local el 2026-06-14
+
+1. Proyecto Firebase
+
+- projectId: rockeala
+- project number: 541511852154
+- region principal de Functions: southamerica-east1
+- runtime de Functions: nodejs22
+- authDomain: rockeala.firebaseapp.com
+- storageBucket configurado en frontend: rockeala.firebasestorage.app
+
+2. Servicios Firebase usados en este proyecto
+
+- Firebase Hosting multisite
+- Firebase Authentication con Google para el panel admin
+- Cloud Firestore como base principal
+- Cloud Functions v2 para logica sensible
+- Firebase Storage para imagenes de admins, productos y salon
+- Firebase Local Emulator Suite para desarrollo
+
+3. Estructura del repo relacionada con Firebase
+
+- .firebaserc
+  Define el proyecto por defecto `rockeala` y los targets Hosting:
+  - publicWeb -> site `rockeala`
+  - adminWeb -> site `rockeala-admin`
+
+- firebase.json
+  Orquesta Functions, Firestore, Storage, emuladores y Hosting multisite.
+
+- firestore.rules
+  Reglas de acceso de Firestore.
+
+- firestore.indexes.json
+  Indices compuestos para consultas de Firestore.
+
+- storage.rules
+  Reglas de Firebase Storage.
+
+- functions/
+  Cloud Functions y script de seed.
+
+- apps/public-web/public/firebase-config.js
+  Config Firebase del sitio publico.
+
+- apps/admin-web/public/firebase-config.js
+  Config Firebase del panel admin.
+
+4. Hosting multisite
+
+Hay 2 sitios dentro del mismo proyecto Firebase:
+
+- publicWeb
+  - carpeta publicada: apps/public-web/public
+  - cleanUrls: true
+  - rewrite especial:
+    /api/health -> function `healthcheck`
+  - cache:
+    CSS y JS con max-age de 7 dias
+    index.html con no-cache
+
+- adminWeb
+  - carpeta publicada: apps/admin-web/public
+  - cleanUrls: true
+  - rewrite:
+    cualquier ruta -> /index.html
+  - cache:
+    CSS, JS e index.html con no-cache
+
+URLs mencionadas en la documentacion del repo:
+
+- https://rockeala.web.app
+- https://rockeala-admin.web.app
+- https://southamerica-east1-rockeala.cloudfunctions.net/healthcheck
+
+5. Emuladores configurados
+
+- Auth: 9099
+- Firestore: 8080
+- Functions: 5001
+- Hosting: 5000
+- Emulator UI: 4000
+- singleProjectMode: true
+
+6. Authentication
+
+- El panel admin usa login con Google.
+- El acceso real al panel no se resuelve solo por Auth.
+- Ademas debe existir un documento `admins/{uid}` en Firestore.
+- Si el documento no existe o `active != true`, el panel no deberia operar.
+
+Flujo real de acceso:
+
+1. La persona inicia sesion con Google.
+2. El frontend obtiene su `uid`.
+3. El panel consulta `admins/{uid}`.
+4. Si existe y esta activo, carga datos y subscripciones.
+5. Si no existe, puede intentar reclamar una invitacion desde `adminInvites` usando una Callable Function.
+
+7. Cloud Functions v2
+
+Archivo principal: functions/src/index.js
+
+Exports actuales:
+
+- healthcheck
+  Endpoint HTTP simple para verificar que Functions responde.
+
+- listPublicAdminProfiles
+  Callable Function publica.
+  Lee:
+  - `admins` con `active == true`
+  - `servicios` con `publicVisible == true`
+  Devuelve perfiles publicos de administradores para el sitio publico.
+
+- createManagedAdminAccess
+  Callable Function autenticada.
+  Solo la administradora principal o una cuenta habilitada puede usarla.
+  Crea o actualiza una invitacion en `adminInvites/{email}`.
+
+- listManagedAdminAccess
+  Callable Function autenticada.
+  Lista admins gestionados e invitaciones pendientes creadas por la admin principal.
+
+- claimManagedAdminAccess
+  Callable Function autenticada.
+  Si la cuenta logueada tiene una invitacion pendiente en `adminInvites/{email}`,
+  crea `admins/{uid}` y marca la invitacion como reclamada.
+
+- submitAppointmentRequest
+  Callable Function publica.
+  Usa:
+  - `admins/{adminId}`
+  - `servicios/{serviceId}`
+  - `clientes`
+  - `turnos`
+  Valida horario, admin activo, servicio valido y luego crea el turno.
+
+Detalles importantes de Functions:
+
+- region: southamerica-east1
+- maxInstances: 10
+- las Callable se dejan con `invoker: public` y `cors: true`
+- la seguridad real se controla dentro del codigo verificando auth y permisos
+
+8. Firestore - modelo de datos real del proyecto
+
+8.1 Coleccion `admins`
+
+Ruta:
+- admins/{adminId}
+
+Uso:
+- lista blanca de acceso al panel admin
+- perfil de cada profesional
+- configuracion base del negocio
+
+Campos vistos en reglas, frontend, seed o datos reales:
+
+- displayName
+- businessName
+- area
+- publicArea
+- role
+- email
+- emailNormalized
+- active
+- publicBookingEnabled
+- timezone
+- slug
+- photoUrl
+- photoStoragePath
+- canManageAdminAccess
+- managedByAdminId
+- createdAt
+- updatedAt
+
+Notas:
+
+- El `adminId` real es el `uid` de Firebase Auth.
+- `canManageAdminAccess` habilita la gestion principal de usuarios/equipo.
+- El perfil puede ser creado manualmente o desde `claimManagedAdminAccess`.
+
+Subcolecciones previstas y protegidas por reglas:
+
+- admins/{adminId}/config/{docId}
+- admins/{adminId}/availability/{docId}
+- admins/{adminId}/catalogSettings/{docId}
+
+8.2 Coleccion `adminInvites`
+
+Ruta:
+- adminInvites/{email}
+
+Uso:
+- invitaciones para crear accesos administrados
+- no la escribe el frontend directo
+- la manejan Functions del lado servidor
+
+Campos vistos en Functions:
+
+- email
+- normalizedEmail
+- displayName
+- businessName
+- role
+- area
+- publicArea
+- timezone
+- ownerAdminId
+- ownerBusinessName
+- status
+- claimedByUid
+- claimedAt
+- createdAt
+- updatedAt
+
+Estados observados:
+
+- pending
+- claimed
+
+Nota:
+
+- `adminInvites` no aparece en firestore.rules porque no se expone al cliente por reglas directas; se opera por Admin SDK desde Functions.
+
+8.3 Coleccion `servicios`
+
+Ruta:
+- servicios/{serviceId}
+
+Uso:
+- catalogo publico y admin
+- la web publica renderiza la seccion servicios a partir de esta coleccion
+
+Campos escritos por el panel admin:
+
+- adminId
+- adminName
+- businessName
+- area
+- name
+- description
+- price
+- currency
+- durationMinutes
+- publicVisible
+- sortOrder
+- createdAt
+- updatedAt
+
+Notas:
+
+- Cada servicio pertenece al `uid` del admin que lo creo.
+- El sitio publico lee solo servicios con `publicVisible == true`.
+- Si un admin existe en `admins` pero no tiene servicios publicos asociados a su `adminId`, no aparece en la seccion publica de servicios.
+
+8.4 Coleccion `turnos`
+
+Ruta:
+- turnos/{appointmentId}
+
+Uso:
+- agenda operativa
+- solicitudes creadas desde la web publica por Callable Function
+
+Campos creados por `submitAppointmentRequest`:
+
+- adminId
+- clientId
+- clientSnapshot
+- serviceId
+- serviceNameSnapshot
+- serviceAreaSnapshot
+- requestedStartAt
+- estimatedDurationMinutes
+- status
+- source
+- notes
+- createdAt
+- updatedAt
+
+Estados usados al menos en la base y docs:
+
+- pending
+- confirmed
+- completed
+- cancelled
+
+8.5 Coleccion `clientes`
+
+Ruta:
+- clientes/{clientId}
+
+Uso:
+- base compartida de clientes
+- relacion principal con uno o varios admins
+
+Campos observados:
+
+- adminId
+- adminIds
+- fullName
+- phone
+- phoneSearch
+- email
+- emailSearch
+- notes
+- birthday
+- lastVisitAt
+- createdAt
+- updatedAt
+
+Subcolecciones:
+
+- clientes/{clientId}/perfilesAdmin/{adminId}
+- clientes/{clientId}/perfilesAdmin/{adminId}/tratamientos/{treatmentId}
+
+Campos del subperfil para Peluqueria Natalia vistos en frontend/seed:
+
+- colorActual
+- ultimoTratamiento
+- cambioColor
+- volumenAguaOxigenada
+- tratamientosAnteriores
+- tratamientosConFormolFecha
+- mechas
+- tratamientosConFormol
+- updatedAt
+
+Campos del historial de tratamientos vistos en seed:
+
+- type
+- detail
+- date
+- notes
+- updatedAt
+
+8.6 Coleccion `stock`
+
+Ruta:
+- stock/{stockId}
+
+Uso:
+- inventario por admin
+
+Campos observados:
+
+- adminId
+- name
+- quantity
+- price
+- brand
+- category
+- createdAt
+- updatedAt
+
+8.7 Coleccion `productos`
+
+Ruta:
+- productos/{productId}
+
+Uso:
+- productos para venta o reventa
+- el frontend publico los puede mostrar
+
+Campos observados:
+
+- adminId
+- name
+- quantity
+- price
+- brand
+- category
+- description
+- imageUrl
+- imageStoragePath
+- createdAt
+- updatedAt
+
+8.8 Coleccion `pagos`
+
+Ruta:
+- pagos/{paymentId}
+
+Uso:
+- prevista para registro financiero
+
+Campos sugeridos por docs y reglas:
+
+- adminId
+- appointmentId
+- clientId
+- amount
+- method
+- status
+- createdAt
+
+Nota:
+
+- La coleccion existe en reglas, pero el panel todavia parece tener la seccion pagos mas cerca de placeholder que de CRUD completo.
+
+8.9 Coleccion `salonMedia`
+
+Ruta:
+- salonMedia/{mediaId}
+
+Uso:
+- carrusel o galeria del salon
+- visible en la experiencia publica
+- administrado desde el panel principal
+
+Campos observados:
+
+- adminId
+- title
+- visible
+- sortOrder
+- imageUrl
+- imageStoragePath
+- createdAt
+- updatedAt
+
+9. Reglas de Firestore
+
+Resumen funcional de firestore.rules:
+
+- `signedIn()`
+  Verifica que haya usuario autenticado.
+
+- `adminProfileExists()`
+  Exige que exista `admins/{request.auth.uid}`.
+
+- `activeAdmin()`
+  Exige que el admin exista y tenga `active == true`.
+
+- `ownsAdmin(adminId)`
+  El usuario autenticado debe coincidir con el `adminId`.
+
+- `ownsOwnAdminProfile(adminId)`
+  Permite leer o editar su propio documento de admin, pero con restricciones.
+
+- `canManagePrincipalSections()`
+  Habilita secciones principales como `salonMedia`.
+  Se concede si:
+  - el admin tiene `canManageAdminAccess == true`, o
+  - el email del token es `37adrian38@gmail.com`, o
+  - el email del token es `nataliasoledadromero27@gmail.com`
+
+Restricciones por coleccion:
+
+- admins
+  - read: solo su propio perfil
+  - create: false
+  - update: solo ciertas claves editables
+  - delete: false
+
+- servicios
+  - read: publico si `publicVisible == true`, o privado al admin duenio
+  - create/update/delete: solo el admin duenio
+
+- salonMedia
+  - read: publico si `visible == true`, o admin principal
+  - write: solo admin principal
+
+- turnos
+  - read/update/delete: solo el admin duenio
+  - create: false desde cliente directo; se hace por Functions
+
+- clientes
+  - get/update/delete: depende de `adminId` y `adminIds`
+  - list: restringido al admin primario del documento
+
+- clientes/perfilesAdmin y tratamientos
+  - solo el admin cuyo `uid` coincide con el doc
+
+- stock
+  - CRUD solo del admin duenio
+
+- productos
+  - read: publico
+  - write: solo del admin duenio
+
+- pagos
+  - CRUD solo del admin duenio
+
+10. Indices de Firestore
+
+Indices compuestos declarados:
+
+- servicios
+  - publicVisible ASC, area ASC, sortOrder ASC
+  - adminId ASC, sortOrder ASC
+
+- turnos
+  - adminId ASC, requestedStartAt ASC
+  - adminId ASC, status ASC, requestedStartAt DESC
+
+- clientes
+  - adminIds ARRAY_CONTAINS, lastVisitAt DESC
+  - adminIds ARRAY_CONTAINS, updatedAt DESC
+
+- stock
+  - adminId ASC, category ASC, updatedAt DESC
+  - adminId ASC, updatedAt DESC
+
+- productos
+  - adminId ASC, updatedAt DESC
+
+11. Firebase Storage
+
+Reglas actuales:
+
+- /public/{allPaths=**}
+  - read: true
+  - write: false
+
+- /admins/{adminId}/{allPaths=**}
+  - read y write solo si `request.auth.uid == adminId`
+
+Paths de Storage usados por el frontend admin:
+
+- admins/{uid}/profile/avatar.webp
+- admins/{uid}/productos/{productId}/cover.webp
+- admins/{uid}/salon/{salonMediaId}/slide.webp
+
+Relacion con Firestore:
+
+- `admins.photoUrl` y `admins.photoStoragePath`
+- `productos.imageUrl` y `productos.imageStoragePath`
+- `salonMedia.imageUrl` y `salonMedia.imageStoragePath`
+
+12. Seed y datos demo
+
+Archivo principal:
+- functions/seed/demo-data.json
+
+Script:
+- functions/scripts/seed-firestore.js
+
+Colecciones que siembra:
+
+- admins
+- servicios
+- stock
+- productos
+- turnos
+- clientes
+- perfilesAdmin
+- tratamientos
+
+Comportamiento del script:
+
+- usa Admin SDK
+- convierte strings de fechas a Timestamp cuando la clave termina en `At` o es `date`
+- bloquea escrituras fuera del emulador salvo que exista `ROCKEALA_SEED_ALLOW_PROD=true`
+
+13. Relacion entre frontend publico y Firestore
+
+Sitio publico:
+
+- Lee `servicios` con `publicVisible == true`
+- Lee `productos`
+- Lee `salonMedia`
+- Consulta la Callable `listPublicAdminProfiles`
+- Envia solicitudes de turnos con `submitAppointmentRequest`
+
+Importante:
+
+- La seccion publica de servicios depende de `servicios`, no de `admins` solamente.
+- Los perfiles publicos de admins se enriquecen con la informacion de `admins`, pero la grilla de servicios nace desde los documentos de `servicios`.
+
+14. Relacion entre panel admin y Firestore
+
+Panel admin:
+
+- inicia sesion con Google
+- carga `admins/{uid}`
+- se suscribe a colecciones filtradas por `adminId == uid`
+- guarda servicios, clientes, stock y productos con el `uid` del usuario logueado
+
+Escrituras vistas en frontend:
+
+- servicios -> usa `adminId: state.user.uid`
+- clientes -> usa `adminId` y `adminIds` del usuario logueado
+- stock -> usa `adminId: state.user.uid`
+- productos -> usa `adminId: state.user.uid`
+- salonMedia -> usa `adminId: state.user.uid`, pero solo para admin principal
+
+15. Estado conceptual actual
+
+La arquitectura Firebase de este proyecto separa claramente:
+
+- experiencia publica
+- panel admin
+- permisos por `uid`
+- escrituras sensibles a traves de Functions o reglas estrictas
+
+La pieza central del modelo es:
+
+- `admins/{uid}` para habilitacion de acceso
+- `servicios/{serviceId}` para el catalogo publico
+- `turnos/{appointmentId}` para las solicitudes
+- `clientes/{clientId}` con subperfiles por admin para personalizacion del negocio
+
+16. Archivos del repo mas utiles para seguir investigando Firebase
+
+- firebase.json
+- .firebaserc
+- firestore.rules
+- firestore.indexes.json
+- storage.rules
+- functions/src/index.js
+- functions/scripts/seed-firestore.js
+- functions/seed/demo-data.json
+- docs/propuesta-tecnica.md
+- docs/firebase-checklist.md

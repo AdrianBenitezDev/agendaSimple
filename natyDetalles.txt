@@ -1,0 +1,24 @@
+1. fichas de clientes (clientes):
+-nombre y apellido
+-color
+-ultimo tratamiento
+-cambio de color
+-volumen de agua oxigenada
+-tratamientos anteriores
+-tratamientos con formol (formato fecha)
+
+2. stock
+color
+marca
+tono (numerico)
+cantidad
+
+3.tratamientos
+con formol sin formol
+
+4.lista de precios
+
+********************************************************************
+********************************************************************
+14/06/2026
+

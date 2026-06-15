@@ -10,6 +10,9 @@
         ],
         "publicWeb": [
           "rockeala"
+        ],
+        "webRockeala": [
+          "rockeala-public-custom"
         ]
       }
     }

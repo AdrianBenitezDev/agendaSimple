@@ -1,0 +1,320 @@
+:root {
+  color-scheme: light;
+  --bg: #f4ece7;
+  --card: #fff9f4;
+  --stroke: #e0cec1;
+  --text: #241716;
+  --muted: #705952;
+  --accent: #b53a32;
+  --accent-dark: #8e2922;
+  --accent-soft: #f5ddd7;
+  --success: #205f49;
+  --shadow: 0 24px 60px rgba(36, 23, 22, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Manrope", Arial, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(181, 58, 50, 0.14), transparent 34%),
+    linear-gradient(180deg, #fbf4ef 0%, var(--bg) 100%);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.register-shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 48px 0 72px;
+  display: grid;
+  gap: 28px;
+}
+
+.register-hero,
+.register-card {
+  background: rgba(255, 249, 244, 0.92);
+  border: 1px solid rgba(224, 206, 193, 0.9);
+  border-radius: 28px;
+  box-shadow: var(--shadow);
+}
+
+.register-hero {
+  padding: 36px;
+}
+
+.register-card {
+  padding: 32px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-family: "Cormorant Garamond", serif;
+  line-height: 0.95;
+}
+
+h1 {
+  font-size: clamp(44px, 7vw, 72px);
+}
+
+h2 {
+  font-size: clamp(32px, 4vw, 46px);
+}
+
+h3 {
+  font-size: clamp(28px, 4vw, 38px);
+}
+
+.lead {
+  max-width: 720px;
+  margin: 18px 0 0;
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.hero-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.hero-points span,
+.session-pill,
+.plan-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.register-card__header,
+.plans-section__header,
+.actions,
+.success-links {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.register-form,
+.plans-section {
+  display: grid;
+  gap: 24px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.field-wide {
+  grid-column: 1 / -1;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+}
+
+label span {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+label small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid var(--stroke);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--text);
+}
+
+input:focus {
+  outline: 2px solid rgba(181, 58, 50, 0.22);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.plan-card {
+  position: relative;
+  border: 1px solid var(--stroke);
+  border-radius: 24px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.plan-card input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.plan-card label {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  min-height: 100%;
+  cursor: pointer;
+}
+
+.plan-card.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(181, 58, 50, 0.16);
+}
+
+.plan-card__top {
+  display: grid;
+  gap: 8px;
+}
+
+.plan-card__price {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.plan-card__description,
+.plan-card__limits li,
+.plan-card__features li,
+.form-message,
+.success-card p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.plan-card__limits,
+.plan-card__features {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.button {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  min-height: 48px;
+  padding: 0 22px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.button-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.button-primary:hover:not(:disabled),
+.button-primary:focus-visible:not(:disabled) {
+  background: var(--accent-dark);
+}
+
+.button-secondary {
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--stroke);
+}
+
+.empty-state,
+.success-card {
+  border: 1px dashed var(--stroke);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 24px;
+}
+
+.form-message.is-error {
+  color: #9c2d27;
+}
+
+.form-message.is-success {
+  color: var(--success);
+}
+
+.success-card {
+  margin-top: 28px;
+}
+
+@media (max-width: 980px) {
+  .plans-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .register-shell {
+    width: min(100% - 20px, 100%);
+    padding: 20px 0 36px;
+  }
+
+  .register-hero,
+  .register-card {
+    padding: 22px;
+    border-radius: 22px;
+  }
+
+  .register-card__header,
+  .plans-section__header,
+  .actions,
+  .success-links {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .form-grid,
+  .plans-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .button {
+    width: 100%;
+  }
+}
