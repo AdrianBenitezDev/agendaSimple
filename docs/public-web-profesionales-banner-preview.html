@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preview | Banner de profesionales</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../apps/public-web/public/styles.css">
+  <style>
+    .preview-shell {
+      width: min(1160px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 11.8rem 0 4rem;
+    }
+
+    .preview-note {
+      margin: 0 0 1rem;
+      padding: 1rem 1.15rem;
+      border: 1px solid rgba(var(--accent-rgb), 0.14);
+      border-radius: 24px;
+      background: rgba(var(--white-rgb), 0.78);
+      color: var(--muted);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .team-banner {
+      width: min(1160px, calc(100% - 0rem));
+      margin: 0.55rem auto 0;
+      padding: 0.5rem;
+      border-radius: 24px;
+      border: 1px solid rgba(var(--accent-rgb), 0.14);
+      background: rgba(var(--white-rgb), 0.88);
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(14px);
+    }
+
+    .team-banner__list {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.8rem;
+    }
+
+    .professional-chip {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 0.9rem;
+      width: 100%;
+      min-height: 92px;
+      padding: 0.6rem 0.8rem;
+      border: 1px solid rgba(var(--accent-rgb), 0.1);
+      border-radius: 22px;
+      background:
+        linear-gradient(135deg, rgba(var(--white-rgb), 0.96), rgba(var(--accent-rgb), 0.04));
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+      box-shadow: 0 14px 30px rgba(var(--ink-rgb), 0.08);
+    }
+
+    .professional-chip__main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      min-width: 72px;
+    }
+
+    .professional-chip:hover {
+      transform: translateY(-2px);
+      border-color: rgba(var(--accent-rgb), 0.28);
+      box-shadow: 0 18px 36px rgba(var(--ink-rgb), 0.1);
+    }
+
+    .professional-chip.is-active {
+      border-color: rgba(var(--accent-rgb), 0.4);
+      background:
+        linear-gradient(135deg, rgba(var(--accent-rgb), 0.14), rgba(var(--white-rgb), 0.98));
+      box-shadow: 0 18px 40px rgba(var(--accent-rgb), 0.14);
+    }
+
+    .professional-chip__avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      object-fit: cover;
+      background: rgba(var(--accent-rgb), 0.08);
+      border: 2px solid rgba(var(--white-rgb), 0.84);
+      box-shadow: 0 8px 18px rgba(var(--ink-rgb), 0.12);
+    }
+
+    .professional-chip__identity {
+      display: grid;
+      gap: 0.2rem;
+      align-content: center;
+      min-width: 0;
+      text-align: center;
+    }
+
+    .professional-chip__identity strong {
+      display: block;
+      font-size: 0.84rem;
+      color: var(--ink);
+      line-height: 1.15;
+    }
+
+    .professional-chip__role {
+      align-self: center;
+      justify-self: end;
+      color: var(--accent-dark);
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(1.3rem, 2.4vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      text-align: right;
+      line-height: 0.92;
+    }
+
+    .preview-section {
+      margin-top: 1.25rem;
+    }
+
+    .preview-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .preview-meta__text p {
+      margin: 0.25rem 0 0;
+      color: var(--muted);
+    }
+
+    .preview-meta__badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.72rem 0.95rem;
+      border-radius: 999px;
+      background: rgba(var(--accent-rgb), 0.08);
+      color: var(--accent-dark);
+      font-size: 0.88rem;
+      font-weight: 800;
+    }
+
+    @media (max-width: 980px) {
+      .team-banner__list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .preview-shell {
+        width: min(100% - 1rem, 1160px);
+        padding-top: 17.2rem;
+      }
+
+      .preview-meta {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .team-banner__list {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 540px) {
+      .preview-shell {
+        width: calc(100% - 0.85rem);
+      }
+
+      .team-banner,
+      .preview-note {
+        border-radius: 24px;
+      }
+
+      .professional-chip {
+        grid-template-columns: auto 1fr;
+      }
+
+      .professional-chip__role {
+        font-size: 1.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="section-banner">
+    <div class="section-banner__notice">
+      <div class="section-banner__notice-copy">
+        <span>&#10024; Preview del nuevo banner de profesionales con datos simulados de Firebase</span>
+      </div>
+      <button type="button" class="section-banner__cta">Ver propuesta</button>
+    </div>
+
+    <div class="section-banner__inner">
+      <button type="button" class="section-banner__brand">
+        <strong>Salon</strong>
+        <span>Martes a s&aacute;bado - 10 a 20 hs</span>
+      </button>
+
+      <div class="section-banner__nav" aria-label="Navegaci&oacute;n principal">
+        <button type="button" class="section-banner__link">Inicio</button>
+        <button type="button" class="section-banner__link is-active">Precios</button>
+        <button type="button" class="section-banner__link">Servicios</button>
+        <button type="button" class="section-banner__link">Turnos</button>
+        <button type="button" class="section-banner__link">Sal&oacute;n</button>
+        <button type="button" class="section-banner__link">Productos</button>
+      </div>
+    </div>
+
+    <div class="team-banner">
+      <div class="team-banner__list" id="professional-list"></div>
+    </div>
+  </div>
+
+  <main class="preview-shell">
+    <section class="preview-note">
+      Los datos de este preview son inventados para validar el layout y la interacci&oacute;n antes de implementarlo en `apps/public-web/public`.
+    </section>
+
+    <section class="section section-prices preview-section">
+      <div class="section-heading">
+        <p class="eyebrow">Precios filtrados</p>
+        <h3 id="selected-professional-title">Precios de Camila Rojas</h3>
+        <p class="section-copy" id="selected-professional-copy">
+          Lista de servicios renderizada seg&uacute;n el profesional elegido.
+        </p>
+      </div>
+
+      <div class="price-board">
+        <div class="preview-meta">
+          <div class="preview-meta__text">
+            <p id="catalog-source">Datos simulados de Firebase: `tenants/demo-tenant/admins` + `services`</p>
+            <p id="last-sync">Seleccion&aacute; otro profesional para cambiar inmediatamente la lista de precios.</p>
+          </div>
+          <div class="preview-meta__badge" id="catalog-count">5 servicios visibles</div>
+        </div>
+
+        <div class="price-board__list" id="price-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const professionals = [
+      {
+        id: "camila-rojas",
+        name: "Camila Rojas",
+        role: "Colorista",
+        avatarUrl: createAvatar("#d65a75", "CR"),
+        bio: "Especialista en color, balayage y recuperaci\u00f3n capilar.",
+        services: [
+          { area: "Color", name: "Balayage soft", duration: "2 h 30 min", price: "$ 48.000" },
+          { area: "Color", name: "Babylights", duration: "3 h", price: "$ 54.000" },
+          { area: "Tratamientos", name: "Nutrici\u00f3n gloss", duration: "45 min", price: "$ 16.500" },
+          { area: "Cortes", name: "Corte + brushing", duration: "50 min", price: "$ 18.000" },
+          { area: "Peinados", name: "Ondas glam", duration: "40 min", price: "$ 14.500" }
+        ]
+      },
+      {
+        id: "valentina-sosa",
+        name: "Valentina Sosa",
+        role: "Manicurista",
+        avatarUrl: createAvatar("#b81622", "VS"),
+        bio: "Manos prolijas, dise\u00f1os delicados y esmaltado duradero.",
+        services: [
+          { area: "Manicura", name: "Semipermanente full color", duration: "1 h 10 min", price: "$ 13.000" },
+          { area: "Manicura", name: "Kapping gel", duration: "1 h 20 min", price: "$ 15.500" },
+          { area: "Manicura", name: "Nail art simple", duration: "25 min", price: "$ 5.500" },
+          { area: "Pedicura", name: "Spa pies + esmaltado", duration: "1 h 15 min", price: "$ 17.000" }
+        ]
+      },
+      {
+        id: "sofia-benitez",
+        name: "Sof\u00eda Ben\u00edtez",
+        role: "Esteticista",
+        avatarUrl: createAvatar("#824670", "SB"),
+        bio: "Limpiezas, glow facial y rituales de cuidado integral.",
+        services: [
+          { area: "Facial", name: "Limpieza profunda", duration: "1 h 20 min", price: "$ 22.000" },
+          { area: "Facial", name: "Hydra glow", duration: "1 h", price: "$ 25.500" },
+          { area: "Cejas", name: "Perfilado + henna", duration: "35 min", price: "$ 10.500" },
+          { area: "Masajes", name: "Drenaje facial", duration: "40 min", price: "$ 13.000" }
+        ]
+      },
+      {
+        id: "julieta-costa",
+        name: "Julieta Costa",
+        role: "Stylist",
+        avatarUrl: createAvatar("#e0974b", "JC"),
+        bio: "Cortes modernos y peinados para eventos con acabado natural.",
+        services: [
+          { area: "Cortes", name: "Corte de dise\u00f1o", duration: "55 min", price: "$ 19.500" },
+          { area: "Peinados", name: "Brushing premium", duration: "45 min", price: "$ 11.500" },
+          { area: "Peinados", name: "Recogido evento", duration: "1 h 15 min", price: "$ 24.000" },
+          { area: "Novias", name: "Prueba de peinado", duration: "1 h 30 min", price: "$ 29.000" }
+        ]
+      }
+    ];
+
+    const professionalList = document.getElementById("professional-list");
+    const priceList = document.getElementById("price-list");
+    const selectedProfessionalTitle = document.getElementById("selected-professional-title");
+    const selectedProfessionalCopy = document.getElementById("selected-professional-copy");
+    const catalogCount = document.getElementById("catalog-count");
+    let selectedProfessionalId = professionals[0].id;
+
+    function createAvatar(color, initials) {
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+          <defs>
+            <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="${color}" />
+              <stop offset="100%" stop-color="#ffffff" stop-opacity="0.9" />
+            </linearGradient>
+          </defs>
+          <rect width="96" height="96" rx="48" fill="url(#g)" />
+          <text x="50%" y="54%" text-anchor="middle" fill="#4a0d16" font-family="Manrope, Arial, sans-serif" font-size="28" font-weight="800">${initials}</text>
+        </svg>
+      `;
+      return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[char]));
+    }
+
+    function getSelectedProfessional() {
+      return professionals.find((professional) => professional.id === selectedProfessionalId) || professionals[0];
+    }
+
+    function groupByArea(services) {
+      return services.reduce((accumulator, service) => {
+        const area = service.area || "Servicios";
+        if (!accumulator[area]) {
+          accumulator[area] = [];
+        }
+        accumulator[area].push(service);
+        return accumulator;
+      }, {});
+    }
+
+    function renderProfessionalButtons() {
+      professionalList.innerHTML = professionals.map((professional) => `
+        <button
+          type="button"
+          class="professional-chip ${professional.id === selectedProfessionalId ? "is-active" : ""}"
+          data-professional-id="${escapeHtml(professional.id)}"
+        >
+          <div class="professional-chip__main">
+            <img
+              class="professional-chip__avatar"
+              src="${escapeHtml(professional.avatarUrl)}"
+              alt="${escapeHtml(professional.name)}"
+            >
+            <span class="professional-chip__identity">
+              <strong>${escapeHtml(professional.name)}</strong>
+            </span>
+          </div>
+          <span class="professional-chip__role">${escapeHtml(professional.role)}</span>
+        </button>
+      `).join("");
+
+      professionalList.querySelectorAll("[data-professional-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+          selectedProfessionalId = button.dataset.professionalId;
+          renderProfessionalButtons();
+          renderPrices();
+        });
+      });
+    }
+
+    function renderPrices() {
+      const professional = getSelectedProfessional();
+      const groupedEntries = Object.entries(groupByArea(professional.services))
+        .sort(([firstArea], [secondArea]) => firstArea.localeCompare(secondArea, "es"));
+
+      selectedProfessionalTitle.textContent = `Precios de ${professional.name}`;
+      selectedProfessionalCopy.textContent = `${professional.role}. ${professional.bio}`;
+      catalogCount.textContent = `${professional.services.length} servicios visibles`;
+
+      priceList.innerHTML = groupedEntries.map(([area, items]) => `
+        <section class="price-group">
+          <div class="price-group__header">
+            <div>
+              <p class="eyebrow">${escapeHtml(area)}</p>
+              <h3>${escapeHtml(area)}</h3>
+            </div>
+            <span>${items.length} ${items.length === 1 ? "servicio" : "servicios"}</span>
+          </div>
+          ${items.map((service) => `
+            <article class="price-row">
+              <div>
+                <strong>${escapeHtml(service.name)}</strong>
+                <p>${escapeHtml(professional.name)}</p>
+              </div>
+              <p>${escapeHtml(service.duration)}</p>
+              <strong>${escapeHtml(service.price)}</strong>
+            </article>
+          `).join("")}
+        </section>
+      `).join("");
+    }
+
+    renderProfessionalButtons();
+    renderPrices();
+  </script>
+</body>
+</html>

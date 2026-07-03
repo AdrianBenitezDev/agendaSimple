@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Salon | Servicios y turnos</title>
-  <link rel="icon" type="image/webp" href="/rockeala_icon.webp">
+  <link rel="icon" type="image/svg+xml" href="/app-icon-black.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,14 +12,8 @@
 </head>
 <body>
   <div class="section-banner">
+    
     <div class="section-banner__notice">
-      <div class="section-banner__notice-copy">
-        <span>&#10024; Atendemos de martes a s&aacute;bado de 10 a 20 hs &middot; Reserv&aacute; tu turno online</span>
-      </div>
-      <button type="button" class="section-banner__cta" data-section-target="turnos">Reservar</button>
-    </div>
-
-    <div class="section-banner__inner">
       <button type="button" class="section-banner__brand" data-section-target="inicio">
         <strong>Salon</strong>
         <span>Martes a s&aacute;bado - 10 a 20 hs</span>
@@ -33,6 +27,10 @@
         <button type="button" class="section-banner__link" data-section-target="salon">Sal&oacute;n</button>
         <button type="button" class="section-banner__link" data-section-target="productos">Productos</button>
       </div>
+    </div>
+
+    <div class="team-banner" id="professional-banner" hidden>
+      <div class="team-banner__list" id="professional-list" aria-label="Profesionales del negocio"></div>
     </div>
   </div>
 
@@ -257,8 +255,8 @@
             <div class="summary-card">
               <p class="eyebrow">Reglas de solicitud</p>
               <ul class="summary-list">
-                <li>Pedidos v&aacute;lidos de martes a s&aacute;bado</li>
-                <li>Franja operativa de 10:00 a 20:00</li>
+                <li>Los servicios regulares se solicitan de martes a s&aacute;bado</li>
+                <li>Los servicios especiales solo muestran fechas definidas por la profesional</li>
                 <li>Confirmaci&oacute;n final por parte del equipo del negocio</li>
               </ul>
             </div>
@@ -297,6 +295,14 @@
         </div>
       </section>
     </main>
+
+    <div class="service-overlay" id="service-overlay" hidden aria-hidden="true">
+      <div class="service-overlay__backdrop" data-overlay-action="close"></div>
+      <div class="service-overlay__panel" id="service-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="service-overlay-title" tabindex="-1">
+        <button type="button" class="service-overlay__close" data-overlay-action="close" aria-label="Cerrar detalle del servicio">&times;</button>
+        <div class="service-overlay__body" id="service-overlay-body"></div>
+      </div>
+    </div>
 
     <footer class="site-footer">
       <div class="site-footer__brand">

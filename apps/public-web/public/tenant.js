@@ -7,11 +7,24 @@ function sanitizeTenantId(value) {
     .toLowerCase();
 }
 
+function sanitizeHostname(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
 export function resolvePublicTenantId() {
   const fixedTenantId = sanitizeTenantId(publicSiteConfig.fixedTenantId);
 
   if (fixedTenantId) {
     return fixedTenantId;
+  }
+
+  const hostTenantMap = publicSiteConfig.hostTenantMap || {};
+  const mappedTenantId = sanitizeTenantId(hostTenantMap[sanitizeHostname(window.location.hostname)]);
+
+  if (mappedTenantId) {
+    return mappedTenantId;
   }
 
   const pathnameSegments = window.location.pathname

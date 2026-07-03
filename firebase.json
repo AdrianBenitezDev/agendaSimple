@@ -68,6 +68,23 @@
           ]
         }
       ],
+      "redirects": [
+        {
+          "source": "/registro",
+          "destination": "https://agendasimple-admin.web.app/registro",
+          "type": 302
+        },
+        {
+          "source": "/registro.html",
+          "destination": "https://agendasimple-admin.web.app/registro",
+          "type": 302
+        },
+        {
+          "source": "/register",
+          "destination": "https://agendasimple-admin.web.app/registro",
+          "type": 302
+        }
+      ],
       "rewrites": [
         {
           "source": "/api/health",
@@ -117,7 +134,89 @@
           ]
         }
       ],
+      "redirects": [
+        {
+          "source": "/register",
+          "destination": "/registro",
+          "type": 302
+        },
+        {
+          "source": "/register/index.html",
+          "destination": "/registro",
+          "type": 302
+        }
+      ],
       "rewrites": [
+        {
+          "source": "/panel",
+          "destination": "/panel.html"
+        },
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    },
+    {
+      "target": "publicWebAgendaSimple",
+      "public": "apps/public-web/public",
+      "cleanUrls": true,
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "headers": [
+        {
+          "source": "**/*.css",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public,max-age=604800"
+            }
+          ]
+        },
+        {
+          "source": "**/*.js",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public,max-age=604800"
+            }
+          ]
+        },
+        {
+          "source": "/index.html",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        }
+      ],
+      "redirects": [
+        {
+          "source": "/registro",
+          "destination": "https://agendasimple-admin.web.app/registro",
+          "type": 302
+        },
+        {
+          "source": "/registro.html",
+          "destination": "https://agendasimple-admin.web.app/registro",
+          "type": 302
+        },
+        {
+          "source": "/register",
+          "destination": "https://agendasimple-admin.web.app/registro",
+          "type": 302
+        }
+      ],
+      "rewrites": [
+        {
+          "source": "/api/health",
+          "function": "healthcheck"
+        },
         {
           "source": "**",
           "destination": "/index.html"

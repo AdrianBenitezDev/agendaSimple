@@ -24,7 +24,9 @@ Actualizado segun el repo local el 2026-06-14
 - .firebaserc
   Define el proyecto por defecto `rockeala` y los targets Hosting:
   - publicWeb -> site `rockeala`
-  - adminWeb -> site `rockeala-admin`
+  - publicWebAgendaSimple -> site `agendasimple-public`
+  - adminWeb -> site `agendasimple-admin`
+  - webRockeala -> site `rockeala-public-custom`
 
 - firebase.json
   Orquesta Functions, Firestore, Storage, emuladores y Hosting multisite.
@@ -49,10 +51,23 @@ Actualizado segun el repo local el 2026-06-14
 
 4. Hosting multisite
 
-Hay 2 sitios dentro del mismo proyecto Firebase:
+Hay varios sitios dentro del mismo proyecto Firebase:
 
 - publicWeb
   - carpeta publicada: apps/public-web/public
+  - site: `rockeala`
+  - uso: site publico alternativo
+  - cleanUrls: true
+  - rewrite especial:
+    /api/health -> function `healthcheck`
+  - cache:
+    CSS y JS con max-age de 7 dias
+    index.html con no-cache
+
+- publicWebAgendaSimple
+  - carpeta publicada: apps/public-web/public
+  - site: `agendasimple-public`
+  - uso: hosting operativo actual de `public-web`
   - cleanUrls: true
   - rewrite especial:
     /api/health -> function `healthcheck`
@@ -70,6 +85,7 @@ Hay 2 sitios dentro del mismo proyecto Firebase:
 
 URLs mencionadas en la documentacion del repo:
 
+- https://agendasimple-public.web.app
 - https://rockeala.web.app
 - https://rockeala-admin.web.app
 - https://southamerica-east1-rockeala.cloudfunctions.net/healthcheck

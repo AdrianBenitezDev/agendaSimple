@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgendaSimple Admin Panel</title>
+  <link rel="icon" type="image/svg+xml" href="/app-icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="top-banner" id="top-banner">
+    <section class="session-panel">
+      <aside class="banner-aside" aria-label="Secciones del panel">
+        <div class="nav-strip" id="section-nav"></div>
+      </aside>
+
+      <div class="session-meta-column">
+        <div class="profile-cluster session-status">
+          <button
+            class="profile-avatar-shell"
+            id="profile-upload-trigger"
+            type="button"
+            aria-label="Cambiar foto de perfil"
+            title="Cambiar foto de perfil"
+          >
+            <img class="profile-avatar" id="profile-image" src="" alt="Foto de perfil">
+          </button>
+          <input class="visually-hidden" id="profile-upload-input" type="file" accept="image/*">
+
+          <div class="session-copy">
+            <div class="session-headline">
+              <span
+                class="session-helper"
+                id="session-helper"
+                aria-label="Estado del panel"
+                data-tooltip="Preparando panel"
+                tabindex="0"
+              >i</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="session-brand" aria-label="Identidad del panel">
+          <strong class="session-brand__title">AgendaSimple Admin</strong>
+          <span class="session-brand__subtitle">Panel del negocio</span>
+        </div>
+
+        <div class="session-actions">
+          <button class="button button-primary" id="session-auth-button" type="button">Entrar con Google</button>
+        </div>
+      </div>
+    </section>
+  </header>
+
+  <div class="toast-stack" aria-live="polite" aria-atomic="true">
+    <p class="status-message" id="auth-message"></p>
+    <p class="status-message" id="profile-message"></p>
+  </div>
+
+  <main class="content-shell">
+    <div class="private-shell" id="private-shell">
+      <div id="view-root"></div>
+    </div>
+  </main>
+
+  <footer class="admin-footer">
+    <div class="admin-footer__inner">
+      <p class="admin-footer__copy">AgendaSimple Admin</p>
+      <a class="admin-footer__link" target="_blank" href="https://agendasimple-public.web.app/" rel="noreferrer">Ir al sitio publico</a>
+    </div>
+  </footer>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

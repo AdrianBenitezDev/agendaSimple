@@ -13,6 +13,7 @@
 
 URLs actuales:
 
+- `https://agendasimple-public.web.app` (`public-web` operativo)
 - `https://rockeala.web.app`
 - `https://rockeala-admin.web.app`
 - `https://southamerica-east1-rockeala.cloudfunctions.net/healthcheck`

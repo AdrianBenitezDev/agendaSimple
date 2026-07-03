@@ -13,9 +13,15 @@ Estado actual:
 
 URLs activas:
 
-- web publica: `https://rockeala.web.app`
+- web publica (`public-web`): `https://agendasimple-public.web.app`
+- web publica alternativa: `https://rockeala.web.app`
 - panel admin: `https://rockeala-admin.web.app`
 - healthcheck: `https://southamerica-east1-rockeala.cloudfunctions.net/healthcheck`
+
+Hosting operativo de `public-web`:
+
+- target Firebase: `publicWebAgendaSimple`
+- site Hosting: `agendasimple-public`
 
 Implementado en el repo:
 

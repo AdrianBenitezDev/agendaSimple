@@ -1,5 +1,9 @@
 export const publicSiteConfig = {
   fixedTenantId: "",
+  hostTenantMap: {
+    "rockeala.web.app": "rockeala",
+    "rockeala.com.ar": "rockeala"
+  },
   defaultBrandName: "Salon",
   defaultPageTitle: "Salon | Servicios y turnos",
   salonImage: {

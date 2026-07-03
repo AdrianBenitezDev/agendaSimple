@@ -11,6 +11,8 @@ const syncStatus = document.getElementById("sync-status");
 const lastSync = document.getElementById("last-sync");
 const catalogCount = document.getElementById("catalog-count");
 const catalogSource = document.getElementById("catalog-source");
+const professionalBanner = document.getElementById("professional-banner");
+const professionalList = document.getElementById("professional-list");
 const publicServiceCount = document.getElementById("public-service-count");
 const publicAreaCount = document.getElementById("public-area-count");
 const publicProductCount = document.getElementById("public-product-count");
@@ -21,6 +23,7 @@ const salonCarouselDots = document.getElementById("salon-carousel-dots");
 const salonCarouselPrev = document.getElementById("salon-carousel-prev");
 const salonCarouselNext = document.getElementById("salon-carousel-next");
 const whatsAppFloat = document.getElementById("whatsapp-float");
+const sectionBanner = document.querySelector(".section-banner");
 const pageSections = [...document.querySelectorAll(".page-section")];
 const sectionTriggers = [...document.querySelectorAll("[data-section-target]")];
 const serviceCountCard = publicServiceCount?.closest("article");
@@ -42,6 +45,9 @@ const timePicker = document.getElementById("booking-time-picker");
 const selectedDateSummary = document.getElementById("selected-date-summary");
 const selectedTimeSummary = document.getElementById("selected-time-summary");
 const availabilityNote = document.getElementById("availability-note");
+const serviceOverlay = document.getElementById("service-overlay");
+const serviceOverlayBody = document.getElementById("service-overlay-body");
+const serviceOverlayPanel = document.getElementById("service-overlay-panel");
 
 const BOOKING_RULES = {
   openDays: [2, 3, 4, 5, 6],
@@ -52,6 +58,9 @@ const BOOKING_RULES = {
   minLeadMinutes: 60
 };
 
+const DEFAULT_CATALOG_SOURCE_COPY = "Conocé nuestros servicios y revisá los precios antes de reservar.";
+const DEFAULT_CATALOG_LAST_SYNC_COPY = "Atendemos de martes a sábado de 10 a 20 hs.";
+
 const state = {
   tenantId: "",
   tenantData: null,
@@ -59,8 +68,13 @@ const state = {
   adminProfiles: [],
   products: [],
   salonMedia: [],
+  selectedProfessionalKey: "",
   selectedArea: "",
   selectedServiceId: "",
+  activePriceServiceId: "",
+  activePriceServiceImageIndex: 0,
+  activePriceServiceLoading: false,
+  activePriceServiceRequestId: 0,
   bookingDays: [],
   selectedDateKey: "",
   selectedTimeMinutes: null,
@@ -69,6 +83,8 @@ const state = {
   catalogStatus: "loading",
   productsStatus: "loading"
 };
+
+let lastOverlayTrigger = null;
 
 function getTenantId() {
   return state.tenantId;
@@ -164,6 +180,10 @@ function toDateTimeLocalValue(date) {
 
 function normalizePhone(value) {
   return String(value ?? "").replace(/\D/g, "");
+}
+
+function getServiceProfessionalKey(service) {
+  return service?.adminId || service?.adminName || service?.name || "";
 }
 
 function getDateKey(date) {
@@ -348,7 +368,60 @@ function buildPublicRoleSummary({ rawRole = "", rawArea = "", extraHints = [] } 
   };
 }
 
+function normalizeServiceSpecialSchedule(rawSchedule = []) {
+  return (Array.isArray(rawSchedule) ? rawSchedule : [])
+    .map((entry) => {
+      const dateKey = String(entry?.dateKey || "").trim();
+      const startMinutes = Number(entry?.startMinutes);
+      const endMinutes = Number(entry?.endMinutes);
+
+      if (!dateKey || !Number.isFinite(startMinutes) || !Number.isFinite(endMinutes) || startMinutes < 0 || endMinutes > 1440 || startMinutes >= endMinutes) {
+        return null;
+      }
+
+      return {
+        dateKey,
+        startMinutes,
+        endMinutes
+      };
+    })
+    .filter(Boolean)
+    .sort((leftEntry, rightEntry) => (
+      leftEntry.dateKey.localeCompare(rightEntry.dateKey, "es")
+      || leftEntry.startMinutes - rightEntry.startMinutes
+      || leftEntry.endMinutes - rightEntry.endMinutes
+    ));
+}
+
+function normalizeServiceImageGallery(rawService = {}) {
+  const gallerySources = [
+    ...(Array.isArray(rawService.imageGallery) ? rawService.imageGallery : []),
+    ...(Array.isArray(rawService.imageUrls) ? rawService.imageUrls : []),
+    ...(Array.isArray(rawService.images) ? rawService.images : []),
+    ...(Array.isArray(rawService.gallery) ? rawService.gallery : [])
+  ];
+
+  const normalizedGallery = gallerySources
+    .map((entry) => (
+      typeof entry === "string"
+        ? entry
+        : (entry?.imageUrl || entry?.url || "")
+    ))
+    .map((imageUrl) => String(imageUrl || "").trim())
+    .filter(Boolean);
+
+  const primaryImageUrl = String(rawService.imageUrl || "").trim();
+
+  if (primaryImageUrl) {
+    normalizedGallery.unshift(primaryImageUrl);
+  }
+
+  return normalizedGallery.filter((imageUrl, index, imageUrls) => imageUrls.indexOf(imageUrl) === index);
+}
+
 function normalizeService(rawService) {
+  const imageGallery = normalizeServiceImageGallery(rawService);
+
   return {
     id: rawService.id,
     adminId: rawService.adminId || "",
@@ -359,7 +432,11 @@ function normalizeService(rawService) {
     durationMinutes: Number(rawService.durationMinutes || 0),
     description: rawService.description || "Servicio disponible en Rockeala Salón.",
     sortOrder: Number(rawService.sortOrder || 0),
-    publicVisible: rawService.publicVisible !== false
+    publicVisible: rawService.publicVisible !== false,
+    isSpecial: rawService.isSpecial === true,
+    specialSchedule: normalizeServiceSpecialSchedule(rawService.specialSchedule),
+    imageUrl: imageGallery[0] || "",
+    imageGallery
   };
 }
 
@@ -439,6 +516,7 @@ function buildPublicAdminCards(services) {
 
       accumulator.set(adminKey, {
         id: service.adminId || "",
+        selectionKey: adminKey,
         displayName: service.adminName || "Equipo Rockeala",
         role: roleSummary.role,
         roleLabel: roleSummary.roleLabel,
@@ -472,6 +550,7 @@ function buildPublicAdminCards(services) {
 
       return {
         id: adminProfile.id,
+        selectionKey: adminProfile.selectionKey,
         displayName,
         role: roleSummary.role,
         roleLabel: roleSummary.roleLabel,
@@ -486,6 +565,59 @@ function buildPublicAdminCards(services) {
     .sort((firstProfile, secondProfile) => firstProfile.displayName.localeCompare(secondProfile.displayName, "es"));
 }
 
+function getProfessionalCards(services = state.services) {
+  return buildPublicAdminCards(services);
+}
+
+function syncSelectedProfessionalKey(professionalCards = getProfessionalCards()) {
+  const availableKeys = professionalCards
+    .map((professionalCard) => professionalCard.selectionKey)
+    .filter(Boolean);
+
+  if (!availableKeys.length) {
+    state.selectedProfessionalKey = "";
+    return;
+  }
+
+  if (!availableKeys.includes(state.selectedProfessionalKey)) {
+    state.selectedProfessionalKey = availableKeys[0];
+  }
+}
+
+function getSelectedProfessionalCard(professionalCards = getProfessionalCards()) {
+  return professionalCards.find((professionalCard) => professionalCard.selectionKey === state.selectedProfessionalKey) || null;
+}
+
+function getVisiblePriceServices(services = state.services) {
+  if (!state.selectedProfessionalKey) {
+    return services;
+  }
+
+  return services.filter((service) => getServiceProfessionalKey(service) === state.selectedProfessionalKey);
+}
+
+function syncStickyBannerOffset() {
+  const offset = Math.ceil((sectionBanner?.offsetHeight || 0) + 24);
+  document.documentElement.style.setProperty("--sticky-banner-offset", `${Math.max(offset, 158)}px`);
+}
+
+function syncPriceBoardMeta(services, selectedProfessional) {
+  if (state.catalogStatus !== "ready") {
+    return;
+  }
+
+  if (!selectedProfessional) {
+    catalogSource.textContent = DEFAULT_CATALOG_SOURCE_COPY;
+    lastSync.textContent = DEFAULT_CATALOG_LAST_SYNC_COPY;
+    catalogCount.textContent = `${services.length} ${services.length === 1 ? "servicio" : "servicios"}`;
+    return;
+  }
+
+  catalogSource.textContent = `Precios de ${selectedProfessional.displayName}.`;
+  lastSync.textContent = `${selectedProfessional.roleLabel} - ${selectedProfessional.publicArea}.`;
+  catalogCount.textContent = `${services.length} ${services.length === 1 ? "servicio" : "servicios"}`;
+}
+
 function getSelectedService() {
   return state.services.find((service) => service.id === state.selectedServiceId) || null;
 }
@@ -493,6 +625,10 @@ function getSelectedService() {
 function getSelectedServiceDuration() {
   const selectedService = getSelectedService();
   return Math.max(30, Number(selectedService?.durationMinutes || 60));
+}
+
+function getSpecialScheduleEntriesForDate(service, dateKey) {
+  return normalizeServiceSpecialSchedule(service?.specialSchedule).filter((entry) => entry.dateKey === dateKey);
 }
 
 function setMessage(message, tone = "") {
@@ -609,6 +745,10 @@ function setActiveSection(sectionId, options = {}) {
 
   if (!targetSection) {
     return;
+  }
+
+  if (sectionId !== "precios" && serviceOverlay && !serviceOverlay.hidden) {
+    closePriceServiceOverlay({ restoreFocus: false });
   }
 
   state.activeSection = sectionId;
@@ -930,6 +1070,7 @@ function renderServices(services) {
               type="button"
               class="button button-secondary button-small"
               data-service-action="prices"
+              data-professional-key="${escapeHtml(adminProfile.selectionKey)}"
               data-admin-id="${escapeHtml(adminProfile.id)}"
             >Ver precios</button>
           </div>
@@ -939,8 +1080,69 @@ function renderServices(services) {
     .join("");
 }
 
-function renderPrices(services) {
+function renderProfessionalBanner(services) {
+  if (!professionalBanner || !professionalList) {
+    return;
+  }
+
   if (services.length === 0) {
+    professionalList.innerHTML = "";
+    professionalBanner.hidden = true;
+    syncStickyBannerOffset();
+    return;
+  }
+
+  const professionalCards = getProfessionalCards(services);
+  syncSelectedProfessionalKey(professionalCards);
+
+  professionalList.innerHTML = professionalCards
+    .map((professionalCard) => {
+      const isActive = professionalCard.selectionKey === state.selectedProfessionalKey;
+
+//  <span class="professional-chip__identity">
+//               <strong>${escapeHtml(professionalCard.displayName)}</strong>
+//             </span>
+
+      return `
+        <button
+          type="button"
+          class="professional-chip ${isActive ? "is-active" : ""}"
+          data-professional-key="${escapeHtml(professionalCard.selectionKey)}"
+          aria-pressed="${isActive ? "true" : "false"}"
+        >
+          <div class="professional-chip__main">
+            <img
+              class="professional-chip__avatar"
+              src="${escapeHtml(professionalCard.photoUrl)}"
+              alt="Foto de perfil de ${escapeHtml(professionalCard.displayName)}"
+              loading="lazy"
+            >
+            <span class="professional-chip__role">${escapeHtml(professionalCard.roleLabel)}</span>
+           
+          </div>
+          
+        </button>
+      `;
+    })
+    .join("");
+
+  professionalBanner.hidden = false;
+  syncStickyBannerOffset();
+}
+
+function renderPrices(services) {
+  const professionalCards = getProfessionalCards(state.services);
+  syncSelectedProfessionalKey(professionalCards);
+  const selectedProfessional = getSelectedProfessionalCard(professionalCards);
+  const visibleServices = getVisiblePriceServices(services);
+
+  syncPriceBoardMeta(visibleServices, selectedProfessional);
+
+  if (state.activePriceServiceId && !visibleServices.some((service) => service.id === state.activePriceServiceId)) {
+    closePriceServiceOverlay({ restoreFocus: false });
+  }
+
+  if (visibleServices.length === 0) {
     priceList.innerHTML = `
       <article class="empty-state">
         ${state.catalogStatus === "loading"
@@ -951,32 +1153,33 @@ function renderPrices(services) {
     return;
   }
 
-  const groupedEntries = Object.entries(groupByArea(services))
-    .sort(([firstArea], [secondArea]) => firstArea.localeCompare(secondArea, "es"));
+  priceList.innerHTML = `
+    <div class="price-service-grid">
+      ${visibleServices.map((service) => `
+        <button
+          type="button"
+          class="price-service-card"
+          data-price-service-id="${escapeHtml(service.id)}"
+          aria-label="${escapeHtml(`Ver detalle de ${service.name}`)}"
+        >
+          <span class="price-service-card__eyebrow">${escapeHtml(service.adminName)}</span>
+          <span class="price-service-card__top">
+            <strong>${escapeHtml(service.name)}</strong>
+            <span class="price-service-card__price">${escapeHtml(formatMoney(service.price))}</span>
+          </span>
+          <span class="price-service-card__meta">
+            <span>${escapeHtml(service.area)}</span>
+            <span>${escapeHtml(formatDuration(service.durationMinutes))}</span>
+          </span>
+          <span class="price-service-card__hint">Toca para ver detalles y sacar turno.</span>
+        </button>
+      `).join("")}
+    </div>
+  `;
 
-  priceList.innerHTML = groupedEntries
-    .map(([area, items]) => `
-      <section class="price-group">
-        <div class="price-group__header">
-          <div>
-            <p class="eyebrow">${escapeHtml(area)}</p>
-            <h3>${escapeHtml(area)}</h3>
-          </div>
-          <span>${escapeHtml(items.length)} ${items.length === 1 ? "servicio" : "servicios"}</span>
-        </div>
-        ${items.map((service) => `
-          <article class="price-row">
-            <div>
-              <strong>${escapeHtml(service.name)}</strong>
-              <p>${escapeHtml(service.adminName)}</p>
-            </div>
-            <p>${escapeHtml(formatDuration(service.durationMinutes))}</p>
-            <strong>${escapeHtml(formatMoney(service.price))}</strong>
-          </article>
-        `).join("")}
-      </section>
-    `)
-    .join("");
+  if (!serviceOverlay?.hidden) {
+    renderPriceServiceOverlay();
+  }
 }
 
 function renderProducts(products) {
@@ -1083,47 +1286,82 @@ function renderServiceOptions() {
 
 function buildTimeSlotsForDate(dateKey, durationMinutes = getSelectedServiceDuration()) {
   const selectedDate = parseDateKey(dateKey);
+  const selectedService = getSelectedService();
 
-  if (!selectedDate) {
+  if (!selectedDate || !selectedService) {
     return [];
   }
 
-  const isOpenDay = BOOKING_RULES.openDays.includes(selectedDate.getDay());
   const slots = [];
+  const minimumStartTime = Date.now() + BOOKING_RULES.minLeadMinutes * 60000;
+  const pushWindowSlots = (startMinutes, endMinutes, isOpenDay = true) => {
+    for (let minutes = startMinutes; minutes < endMinutes; minutes += BOOKING_RULES.slotIntervalMinutes) {
+      const slotDate = createDateWithTime(dateKey, minutes);
+      const slotEndsAt = minutes + durationMinutes;
+      const isTooLate = slotEndsAt > endMinutes;
+      const isTooSoon = !slotDate || slotDate.getTime() < minimumStartTime;
+      const isAvailable = isOpenDay && !isTooLate && !isTooSoon;
+
+      let disabledReason = "";
+
+      if (!isOpenDay) {
+        disabledReason = "Cerrado";
+      } else if (isTooSoon) {
+        disabledReason = "No disponible";
+      } else if (isTooLate) {
+        disabledReason = "No alcanza el bloque";
+      }
+
+      slots.push({
+        minutes,
+        label: formatTimeLabel(minutes),
+        endLabel: formatTimeLabel(Math.min(slotEndsAt, endMinutes)),
+        isAvailable,
+        disabledReason
+      });
+    }
+  };
+
+  if (selectedService.isSpecial) {
+    getSpecialScheduleEntriesForDate(selectedService, dateKey).forEach((entry) => {
+      pushWindowSlots(entry.startMinutes, entry.endMinutes);
+    });
+
+    return slots;
+  }
+
+  const isOpenDay = BOOKING_RULES.openDays.includes(selectedDate.getDay());
   const openingMinutes = BOOKING_RULES.openHour * 60;
   const closingMinutes = BOOKING_RULES.closeHour * 60;
-  const minimumStartTime = Date.now() + BOOKING_RULES.minLeadMinutes * 60000;
-
-  for (let minutes = openingMinutes; minutes < closingMinutes; minutes += BOOKING_RULES.slotIntervalMinutes) {
-    const slotDate = createDateWithTime(dateKey, minutes);
-    const slotEndsAt = minutes + durationMinutes;
-    const isTooLate = slotEndsAt > closingMinutes;
-    const isTooSoon = slotDate.getTime() < minimumStartTime;
-    const isAvailable = isOpenDay && !isTooLate && !isTooSoon;
-
-    let disabledReason = "";
-
-    if (!isOpenDay) {
-      disabledReason = "Cerrado";
-    } else if (isTooSoon) {
-      disabledReason = "No disponible";
-    } else if (isTooLate) {
-      disabledReason = "No alcanza el bloque";
-    }
-
-    slots.push({
-      minutes,
-      label: formatTimeLabel(minutes),
-      endLabel: formatTimeLabel(Math.min(slotEndsAt, closingMinutes)),
-      isAvailable,
-      disabledReason
-    });
-  }
+  pushWindowSlots(openingMinutes, closingMinutes, isOpenDay);
 
   return slots;
 }
 
 function buildBookingDays() {
+  const selectedService = getSelectedService();
+
+  if (selectedService?.isSpecial) {
+    const normalizedSchedule = normalizeServiceSpecialSchedule(selectedService.specialSchedule);
+    const uniqueDateKeys = [...new Set(normalizedSchedule.map((entry) => entry.dateKey))];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return uniqueDateKeys.map((dateKey) => {
+      const date = parseDateKey(dateKey);
+      const slots = buildTimeSlotsForDate(dateKey);
+      const availableSlotsCount = slots.filter((slot) => slot.isAvailable).length;
+
+      return {
+        key: dateKey,
+        date,
+        isOpen: true,
+        isSelectable: availableSlotsCount > 0,
+        availableSlotsCount
+      };
+    }).filter((day) => day.date && day.date >= today);
+  }
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -1268,8 +1506,281 @@ function renderSelectedService() {
     <p>${escapeHtml(selectedService.area)} - ${escapeHtml(selectedService.adminName)}</p>
     <p>${escapeHtml(formatMoney(selectedService.price))} - ${escapeHtml(formatDuration(selectedService.durationMinutes))}</p>
     <p>${escapeHtml(selectedService.description)}</p>
+    <p>${escapeHtml(selectedService.isSpecial
+      ? "Servicio especial disponible solo en fechas puntuales definidas por la profesional."
+      : "Servicio con agenda regular del profesional.")}</p>
     <p class="summary-emphasis">${escapeHtml(scheduleCopy)}</p>
   `;
+}
+
+function getServiceImageGallery(service) {
+  const normalizedGallery = Array.isArray(service?.imageGallery)
+    ? service.imageGallery
+    : [];
+  const primaryImageUrl = String(service?.imageUrl || "").trim();
+  const gallery = normalizedGallery.length ? normalizedGallery : (primaryImageUrl ? [primaryImageUrl] : []);
+  return gallery.filter(Boolean);
+}
+
+function getPriceServiceById(serviceId) {
+  return state.services.find((service) => service.id === serviceId) || null;
+}
+
+function getActivePriceService() {
+  return getPriceServiceById(state.activePriceServiceId);
+}
+
+function getOverlayFocusableElements() {
+  if (!serviceOverlayPanel) {
+    return [];
+  }
+
+  return [...serviceOverlayPanel.querySelectorAll("button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])")]
+    .filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true" && element.offsetParent !== null);
+}
+
+function focusOverlayTarget(selector) {
+  if (!serviceOverlayPanel) {
+    return;
+  }
+
+  const target = selector
+    ? serviceOverlayPanel.querySelector(selector)
+    : null;
+
+  if (target instanceof HTMLElement) {
+    target.focus();
+    return;
+  }
+
+  const [firstFocusable] = getOverlayFocusableElements();
+  (firstFocusable || serviceOverlayPanel)?.focus();
+}
+
+async function hydratePriceServiceDetail(serviceId) {
+  if (!db || !serviceId || !getTenantId()) {
+    return;
+  }
+
+  const requestId = state.activePriceServiceRequestId + 1;
+  state.activePriceServiceRequestId = requestId;
+  state.activePriceServiceLoading = true;
+
+  if (state.activePriceServiceId === serviceId && serviceOverlay && !serviceOverlay.hidden) {
+    renderPriceServiceOverlay();
+  }
+
+  try {
+    const serviceSnapshot = await getDoc(doc(db, "tenants", getTenantId(), "servicios", serviceId));
+
+    if (state.activePriceServiceRequestId !== requestId || state.activePriceServiceId !== serviceId) {
+      return;
+    }
+
+    if (!serviceSnapshot.exists()) {
+      return;
+    }
+
+    const currentService = getPriceServiceById(serviceId) || {};
+    const refreshedService = normalizeService({
+      id: serviceSnapshot.id,
+      ...serviceSnapshot.data()
+    });
+
+    const mergedService = {
+      ...currentService,
+      ...refreshedService,
+      adminId: refreshedService.adminId || currentService.adminId || "",
+      adminName: refreshedService.adminName || currentService.adminName || "",
+      area: refreshedService.area || currentService.area || ""
+    };
+
+    state.services = state.services.map((service) => (
+      service.id === serviceId
+        ? mergedService
+        : service
+    ));
+  } catch (error) {
+    console.warn("[public-web] service-overlay-hydrate-error", {
+      tenantId: getTenantId(),
+      serviceId,
+      error
+    });
+  } finally {
+    if (state.activePriceServiceRequestId !== requestId) {
+      return;
+    }
+
+    state.activePriceServiceLoading = false;
+
+    if (state.activePriceServiceId === serviceId && serviceOverlay && !serviceOverlay.hidden) {
+      renderPriceServiceOverlay();
+    }
+  }
+}
+
+function renderPriceServiceOverlay() {
+  if (!serviceOverlayBody) {
+    return;
+  }
+
+  const activeService = getActivePriceService();
+
+  if (!activeService) {
+    serviceOverlayBody.innerHTML = "";
+    return;
+  }
+
+  const imageGallery = getServiceImageGallery(activeService);
+  const activeImageIndex = imageGallery.length
+    ? Math.min(state.activePriceServiceImageIndex, imageGallery.length - 1)
+    : 0;
+  const activeImageUrl = imageGallery[activeImageIndex] || "";
+
+  state.activePriceServiceImageIndex = activeImageIndex;
+  serviceOverlayPanel?.setAttribute("aria-busy", state.activePriceServiceLoading ? "true" : "false");
+
+  serviceOverlayBody.innerHTML = `
+    <div class="service-overlay__layout">
+      <div class="service-overlay__media">
+        ${activeImageUrl ? `
+          <div class="service-overlay__carousel">
+            ${imageGallery.length > 1 ? `
+              <button type="button" class="service-overlay__nav" data-overlay-action="prev-image" aria-label="Imagen anterior">&lsaquo;</button>
+            ` : ""}
+            <img
+              class="service-overlay__image"
+              src="${escapeHtml(activeImageUrl)}"
+              alt="${escapeHtml(activeService.name)}"
+              loading="lazy"
+            >
+            ${imageGallery.length > 1 ? `
+              <button type="button" class="service-overlay__nav" data-overlay-action="next-image" aria-label="Imagen siguiente">&rsaquo;</button>
+            ` : ""}
+          </div>
+          ${imageGallery.length > 1 ? `
+            <div class="service-overlay__dots" aria-label="Seleccionar imagen del servicio">
+              ${imageGallery.map((_, index) => `
+                <button
+                  type="button"
+                  class="service-overlay__dot ${index === activeImageIndex ? "is-active" : ""}"
+                  data-overlay-action="select-image"
+                  data-overlay-image-index="${index}"
+                  aria-label="${escapeHtml(`Ver imagen ${index + 1}`)}"
+                ></button>
+              `).join("")}
+            </div>
+          ` : ""}
+        ` : `
+          <div class="service-overlay__placeholder">
+            <span>${escapeHtml((activeService.name || "SV").slice(0, 2).toUpperCase())}</span>
+            <p>Este servicio todav&iacute;a no tiene im&aacute;genes publicadas.</p>
+          </div>
+        `}
+      </div>
+      <div class="service-overlay__content">
+        <p class="service-overlay__eyebrow">${escapeHtml(activeService.adminName)}</p>
+        <h3 id="service-overlay-title">${escapeHtml(activeService.name)}</h3>
+        <div class="service-overlay__price-line">
+          <strong>${escapeHtml(formatMoney(activeService.price))}</strong>
+          <span>${escapeHtml(formatDuration(activeService.durationMinutes))}</span>
+        </div>
+        <p class="service-overlay__area">${escapeHtml(activeService.area)}</p>
+        <p class="service-overlay__description">${escapeHtml(activeService.description)}</p>
+        <p class="service-overlay__note">${escapeHtml(activeService.isSpecial
+          ? "Servicio especial con fechas puntuales definidas por la profesional."
+          : "Servicio disponible dentro de la agenda regular del profesional.")}</p>
+        ${state.activePriceServiceLoading ? `
+          <p class="service-overlay__status" role="status">Actualizando detalles del servicio...</p>
+        ` : ""}
+        <div class="service-overlay__actions">
+          <button
+            type="button"
+            class="button button-primary"
+            data-overlay-action="book-service"
+            data-service-id="${escapeHtml(activeService.id)}"
+          >
+            Sacar turno
+          </button>
+          <button
+            type="button"
+            class="button button-secondary"
+            data-overlay-action="close"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function openPriceServiceOverlay(serviceId, triggerElement = null) {
+  const activeService = getPriceServiceById(serviceId);
+
+  if (!activeService || !serviceOverlay) {
+    return;
+  }
+
+  lastOverlayTrigger = triggerElement instanceof HTMLElement
+    ? triggerElement
+    : (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  state.activePriceServiceId = activeService.id;
+  state.activePriceServiceImageIndex = 0;
+  renderPriceServiceOverlay();
+  serviceOverlay.hidden = false;
+  serviceOverlay.setAttribute("aria-hidden", "false");
+  document.body.classList.add("is-overlay-open");
+  requestAnimationFrame(() => {
+    focusOverlayTarget("[data-overlay-action='close']");
+  });
+  void hydratePriceServiceDetail(activeService.id);
+}
+
+function closePriceServiceOverlay({ restoreFocus = true } = {}) {
+  if (!serviceOverlay) {
+    return;
+  }
+
+  serviceOverlay.hidden = true;
+  serviceOverlay.setAttribute("aria-hidden", "true");
+  state.activePriceServiceId = "";
+  state.activePriceServiceImageIndex = 0;
+  state.activePriceServiceLoading = false;
+  state.activePriceServiceRequestId += 1;
+  document.body.classList.remove("is-overlay-open");
+
+  if (restoreFocus && lastOverlayTrigger?.isConnected) {
+    lastOverlayTrigger.focus();
+  }
+
+  lastOverlayTrigger = null;
+}
+
+function shiftPriceServiceImage(step) {
+  const activeService = getActivePriceService();
+  const imageGallery = getServiceImageGallery(activeService);
+
+  if (imageGallery.length <= 1) {
+    return;
+  }
+
+  state.activePriceServiceImageIndex = (state.activePriceServiceImageIndex + step + imageGallery.length) % imageGallery.length;
+  renderPriceServiceOverlay();
+  focusOverlayTarget(`[data-overlay-action="${step < 0 ? "prev-image" : "next-image"}"]`);
+}
+
+function selectPriceServiceImage(index) {
+  const activeService = getActivePriceService();
+  const imageGallery = getServiceImageGallery(activeService);
+
+  if (!imageGallery.length) {
+    return;
+  }
+
+  state.activePriceServiceImageIndex = Math.max(0, Math.min(index, imageGallery.length - 1));
+  renderPriceServiceOverlay();
+  focusOverlayTarget(`[data-overlay-action="select-image"][data-overlay-image-index="${state.activePriceServiceImageIndex}"]`);
 }
 
 function refreshBookingUi() {
@@ -1299,6 +1810,7 @@ function renderCatalog(services) {
     areaCount
   });
 
+  renderProfessionalBanner(sortedServices);
   renderActiveSectionContent();
 }
 
@@ -1321,6 +1833,37 @@ function validateBookingWindow(rawDateTime) {
   }
 
   return "";
+}
+
+function validateSelectedBookingWindow(rawDateTime) {
+  const selectedService = getSelectedService();
+  const parsedDate = new Date(rawDateTime);
+
+  if (!selectedService || Number.isNaN(parsedDate.getTime())) {
+    return "ElegÃ­ una fecha y hora vÃ¡lidas.";
+  }
+
+  const minimumStartTime = Date.now() + BOOKING_RULES.minLeadMinutes * 60000;
+
+  if (parsedDate.getTime() < minimumStartTime) {
+    return "Ese horario ya no estÃ¡ disponible. Elige otro mÃ¡s adelante.";
+  }
+
+  if (selectedService.isSpecial) {
+    const selectedDateKey = getDateKey(parsedDate);
+    const requestedStartMinutes = (parsedDate.getHours() * 60) + parsedDate.getMinutes();
+    const requestedEndMinutes = requestedStartMinutes + getSelectedServiceDuration();
+    const matchesSpecialWindow = getSpecialScheduleEntriesForDate(selectedService, selectedDateKey)
+      .some((entry) => requestedStartMinutes >= entry.startMinutes && requestedEndMinutes <= entry.endMinutes);
+
+    if (!matchesSpecialWindow) {
+      return "Este servicio especial solo puede reservarse dentro de las fechas y horarios definidos por la profesional.";
+    }
+
+    return "";
+  }
+
+  return validateBookingWindow(rawDateTime);
 }
 
 async function loadTenantContext() {
@@ -1465,8 +2008,12 @@ async function bootstrapCatalog() {
     state.adminProfiles = [];
   }
 
+  renderProfessionalBanner(state.services);
+
   if (state.activeSection === "servicios") {
     renderServices(state.services);
+  } else if (state.activeSection === "precios") {
+    renderPrices(state.services);
   }
 
   try {
@@ -1495,17 +2042,44 @@ async function bootstrapCatalog() {
 
 function focusBookingForAdmin(adminId) {
   if (!adminId) {
-    return;
+    return false;
   }
 
   const matchingService = state.services.find((service) => service.adminId === adminId);
 
   if (!matchingService) {
-    return;
+    return false;
+  }
+
+  return focusBookingForService(matchingService.id);
+}
+
+function focusBookingForService(serviceId) {
+  const matchingService = state.services.find((service) => service.id === serviceId);
+
+  if (!matchingService) {
+    return false;
   }
 
   state.selectedArea = matchingService.area;
   state.selectedServiceId = matchingService.id;
+  return true;
+}
+
+function selectProfessionalByKey(professionalKey) {
+  if (!professionalKey) {
+    return false;
+  }
+
+  const matchesProfessional = state.services.some((service) => getServiceProfessionalKey(service) === professionalKey);
+
+  if (!matchesProfessional) {
+    return false;
+  }
+
+  state.selectedProfessionalKey = professionalKey;
+  renderProfessionalBanner(state.services);
+  return true;
 }
 
 async function handleBookingSubmit(event) {
@@ -1523,7 +2097,7 @@ async function handleBookingSubmit(event) {
     return;
   }
 
-  const bookingWindowError = validateBookingWindow(requestedStartInput.value);
+  const bookingWindowError = validateSelectedBookingWindow(requestedStartInput.value);
 
   if (bookingWindowError) {
     setMessage(bookingWindowError, "error");
@@ -1604,6 +2178,7 @@ function handleServicesAction(event) {
   }
 
   const adminId = actionButton.dataset.adminId || "";
+  const professionalKey = actionButton.dataset.professionalKey || adminId;
   const action = actionButton.dataset.serviceAction;
 
   if (action === "booking") {
@@ -1613,7 +2188,128 @@ function handleServicesAction(event) {
   }
 
   if (action === "prices") {
+    selectProfessionalByKey(professionalKey);
     setActiveSection("precios");
+  }
+}
+
+function handleProfessionalBannerClick(event) {
+  const professionalButton = event.target.closest("[data-professional-key]");
+
+  if (!professionalButton) {
+    return;
+  }
+
+  const professionalKey = professionalButton.dataset.professionalKey || "";
+
+  if (!selectProfessionalByKey(professionalKey)) {
+    return;
+  }
+
+  if (state.activeSection !== "precios") {
+    setActiveSection("precios");
+    return;
+  }
+
+  renderPrices(state.services);
+}
+
+function handlePriceListClick(event) {
+  const serviceCard = event.target.closest("[data-price-service-id]");
+
+  if (!serviceCard) {
+    return;
+  }
+
+  openPriceServiceOverlay(serviceCard.dataset.priceServiceId || "", serviceCard);
+}
+
+function handleServiceOverlayClick(event) {
+  if (!serviceOverlay || serviceOverlay.hidden) {
+    return;
+  }
+
+  const actionButton = event.target.closest("[data-overlay-action]");
+
+  if (!actionButton) {
+    return;
+  }
+
+  const overlayAction = actionButton.dataset.overlayAction;
+
+  if (overlayAction === "close") {
+    closePriceServiceOverlay();
+    return;
+  }
+
+  if (overlayAction === "prev-image") {
+    shiftPriceServiceImage(-1);
+    return;
+  }
+
+  if (overlayAction === "next-image") {
+    shiftPriceServiceImage(1);
+    return;
+  }
+
+  if (overlayAction === "select-image") {
+    selectPriceServiceImage(Number(actionButton.dataset.overlayImageIndex));
+    return;
+  }
+
+  if (overlayAction === "book-service") {
+    const serviceId = actionButton.dataset.serviceId || state.activePriceServiceId;
+
+    if (!focusBookingForService(serviceId)) {
+      return;
+    }
+
+    closePriceServiceOverlay();
+    setActiveSection("turnos");
+  }
+}
+
+function handleGlobalKeydown(event) {
+  if (!serviceOverlay || serviceOverlay.hidden) {
+    return;
+  }
+
+  if (event.key === "Escape") {
+    closePriceServiceOverlay();
+    return;
+  }
+
+  if (event.key !== "Tab") {
+    return;
+  }
+
+  const focusableElements = getOverlayFocusableElements();
+
+  if (!focusableElements.length) {
+    event.preventDefault();
+    serviceOverlayPanel?.focus();
+    return;
+  }
+
+  const firstFocusable = focusableElements[0];
+  const lastFocusable = focusableElements[focusableElements.length - 1];
+  const activeElement = document.activeElement;
+
+  if (!serviceOverlayPanel?.contains(activeElement)) {
+    event.preventDefault();
+    firstFocusable.focus();
+    return;
+  }
+
+  if (event.shiftKey && activeElement === firstFocusable) {
+    event.preventDefault();
+    lastFocusable.focus();
+    return;
+  }
+
+  if (!event.shiftKey && activeElement === lastFocusable) {
+    event.preventDefault();
+    firstFocusable.focus();
   }
 }
 
@@ -1644,7 +2340,12 @@ function attachEvents() {
   dayPicker.addEventListener("click", handleDaySelection);
   timePicker.addEventListener("click", handleTimeSelection);
   servicesGrid.addEventListener("click", handleServicesAction);
+  priceList?.addEventListener("click", handlePriceListClick);
+  professionalList?.addEventListener("click", handleProfessionalBannerClick);
+  serviceOverlay?.addEventListener("click", handleServiceOverlayClick);
   bookingForm.addEventListener("submit", handleBookingSubmit);
+  window.addEventListener("resize", syncStickyBannerOffset);
+  window.addEventListener("keydown", handleGlobalKeydown);
 
   salonCarouselPrev?.addEventListener("click", () => {
     shiftSalonSlide(-1);
@@ -1673,6 +2374,16 @@ async function bootstrapPublicExperience() {
   }
 
   renderSalonCarousel();
+  syncStickyBannerOffset();
+
+  if (sectionBanner && typeof ResizeObserver === "function") {
+    const bannerObserver = new ResizeObserver(() => {
+      syncStickyBannerOffset();
+    });
+
+    bannerObserver.observe(sectionBanner);
+  }
+
   attachEvents();
   setActiveSection(state.activeSection, {
     scroll: false,

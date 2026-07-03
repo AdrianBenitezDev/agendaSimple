@@ -6,15 +6,21 @@ function sanitizeTenantId(value) {
 }
 
 export function resolveAdminTenantId() {
+  const queryTenant = sanitizeTenantId(new URLSearchParams(window.location.search).get("tenant"));
+
+  if (queryTenant) {
+    return queryTenant;
+  }
+
   const pathnameSegments = window.location.pathname
     .split("/")
     .map((segment) => sanitizeTenantId(segment))
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((segment) => !["panel", "register", "registro"].includes(segment));
 
   if (pathnameSegments[0]) {
     return pathnameSegments[0];
   }
 
-  const queryTenant = sanitizeTenantId(new URLSearchParams(window.location.search).get("tenant"));
-  return queryTenant || "";
+  return "";
 }

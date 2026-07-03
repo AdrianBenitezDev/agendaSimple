@@ -1,11 +1,15 @@
 export { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
 export {
   browserLocalPersistence,
+  createUserWithEmailAndPassword,
+  getRedirectResult,
   getAuth,
   GoogleAuthProvider,
   onAuthStateChanged,
   setPersistence,
+  signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut
 } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
 export {

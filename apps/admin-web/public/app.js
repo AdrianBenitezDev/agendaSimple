@@ -38,9 +38,11 @@ const NAV_ITEMS = [
   { id: "productos", label: "Productos" },
   { id: "pagos", label: "Pagos" },
   { id: "salon", label: "Salon" },
-  { id: "usuarios", label: "Usuarios" }
+  { id: "usuarios", label: "Usuarios" },
+  { id: "configuraciones", label: "Configuraciones" }
 ];
 const MANAGED_ADMIN_ROLES = [
+  { id: "peluqueria", label: "Peluqueria" },
   { id: "manicura", label: "Manicura" },
   { id: "depilacion", label: "Depilacion" },
   { id: "barberia", label: "Barberia" }
@@ -49,10 +51,25 @@ const ADMIN_ACCESS_MANAGER_EMAILS = new Set([
   "37adrian38@gmail.com",
   "nataliasoledadromero27@gmail.com"
 ]);
+const TENANT_STORAGE_KEY = "agendasimple.admin.tenantId";
+const TOAST_AUTO_DISMISS_MS = 4200;
+const APPOINTMENT_WEEK_START_DAY = 2;
+const APPOINTMENT_WEEK_DAY_COUNT = 5;
+const APPOINTMENT_DAY_START_HOUR = 10;
+const APPOINTMENT_DAY_END_HOUR = 20;
+const APPOINTMENT_HOUR_ROW_HEIGHT = 78;
+const APPOINTMENT_THEME_PALETTE = [
+  { color: "rgba(189, 68, 57, 0.94)", background: "rgba(189, 68, 57, 0.18)" },
+  { color: "rgba(43, 122, 120, 0.94)", background: "rgba(43, 122, 120, 0.18)" },
+  { color: "rgba(194, 141, 31, 0.94)", background: "rgba(194, 141, 31, 0.18)" },
+  { color: "rgba(108, 77, 173, 0.94)", background: "rgba(108, 77, 173, 0.18)" },
+  { color: "rgba(33, 97, 166, 0.94)", background: "rgba(33, 97, 166, 0.18)" }
+];
 
 const state = {
   tenantId: "",
   tenantData: null,
+  tenantRoles: [],
   user: null,
   profile: null,
   authResolved: false,
@@ -65,6 +82,7 @@ const state = {
   stockUi: createEmptyInventoryUiState(),
   productUi: createEmptyInventoryUiState(),
   salonUi: createEmptySalonUiState(),
+  appointmentUi: createEmptyAppointmentUiState(),
   unsubscribers: [],
   subscribedAdminId: null,
   activeView: resolveInitialView(),
@@ -72,12 +90,16 @@ const state = {
   authBusy: false,
   clientUi: createEmptyClientUiState(),
   adminAccess: createEmptyAdminAccessState(),
+  settingsUi: createEmptySettingsUiState(),
   editor: {
     serviceId: "",
     clientId: "",
     stockId: "",
     productId: "",
     salonMediaId: "",
+    teamEntryId: "",
+    teamEntryType: "",
+    tenantRoleId: "",
     clientProfile: createEmptyClientProfile()
   },
   messages: {
@@ -88,7 +110,9 @@ const state = {
     stock: createEmptyMessage(),
     product: createEmptyMessage(),
     salon: createEmptyMessage(),
-    team: createEmptyMessage()
+    team: createEmptyMessage(),
+    settings: createEmptyMessage(),
+    roles: createEmptyMessage()
   }
 };
 
@@ -111,6 +135,21 @@ const contentShell = document.querySelector(".content-shell");
 const privateShell = document.getElementById("private-shell");
 const viewRoot = document.getElementById("view-root");
 const adminFooterLink = document.querySelector(".admin-footer__link");
+const toastDismissTimers = {
+  auth: 0,
+  profile: 0
+};
+const panelDomReady = Boolean(
+  sessionAuthButton
+  && profileUploadTrigger
+  && profileUploadInput
+  && sectionNav
+  && viewRoot
+);
+
+function debugLog(event, payload = {}) {
+  console.info("[admin-panel]", event, payload);
+}
 
 function getTenantId() {
   return state.tenantId;
@@ -174,19 +213,77 @@ function createEmptySalonUiState() {
   };
 }
 
+function createEmptyAppointmentUiState() {
+  return {
+    selectedProfessionalId: "all",
+    detailAppointmentId: "",
+    detailFeedback: ""
+  };
+}
+
 function createEmptyAdminAccessState() {
   return {
     admins: [],
     invites: [],
     loading: false,
     loaded: false,
-    submitting: false
+    submitting: false,
+    actionId: ""
+  };
+}
+
+function createEmptySettingsUiState() {
+  return {
+    saving: false,
+    roleSubmitting: false,
+    roleDeletingId: ""
   };
 }
 
 function resolveInitialView() {
   const hashView = String(window.location.hash || "").replace("#", "").trim();
   return NAV_ITEMS.some((item) => item.id === hashView) ? hashView : "dashboard";
+}
+
+function normalizeTenantRoleEntry(roleEntry) {
+  if (!roleEntry) {
+    return null;
+  }
+
+  const roleId = slugify(typeof roleEntry === "string" ? roleEntry : (roleEntry.id || roleEntry.label || ""));
+  const roleLabel = String(typeof roleEntry === "string" ? roleEntry : (roleEntry.label || roleEntry.id || "")).trim();
+
+  if (!roleId || !roleLabel) {
+    return null;
+  }
+
+  return {
+    id: roleId,
+    label: roleLabel
+  };
+}
+
+function getTenantRolesFromData(tenantData = {}) {
+  const rawRoles = Array.isArray(tenantData.roles) ? tenantData.roles : [];
+  const normalizedRoles = rawRoles
+    .map(normalizeTenantRoleEntry)
+    .filter(Boolean)
+    .filter((roleEntry, index, roleEntries) => roleEntries.findIndex((candidate) => candidate.id === roleEntry.id) === index)
+    .sort((leftRole, rightRole) => leftRole.label.localeCompare(rightRole.label, "es"));
+
+  if (normalizedRoles.length > 0) {
+    return normalizedRoles;
+  }
+
+  return [...MANAGED_ADMIN_ROLES];
+}
+
+function syncTenantRolesFromTenantData() {
+  state.tenantRoles = getTenantRolesFromData(state.tenantData || {});
+}
+
+function getAvailableManagedAdminRoles() {
+  return state.tenantRoles.length ? state.tenantRoles : [...MANAGED_ADMIN_ROLES];
 }
 
 function escapeHtml(value) {
@@ -227,6 +324,7 @@ function formatDateTime(rawValue) {
   }
 
   return new Intl.DateTimeFormat("es-AR", {
+    timeZone: resolveTenantTimeZone(),
     dateStyle: "medium",
     timeStyle: "short"
   }).format(dateValue);
@@ -257,6 +355,114 @@ function toDateMillis(rawValue) {
 
   const dateValue = rawValue?.toDate ? rawValue.toDate() : new Date(rawValue);
   return Number.isNaN(dateValue.getTime()) ? 0 : dateValue.getTime();
+}
+
+function resolveTenantTimeZone() {
+  return state.tenantData?.timezone || "America/Argentina/Buenos_Aires";
+}
+
+function toTenantDate(rawValue) {
+  if (!rawValue) {
+    return null;
+  }
+
+  const sourceDate = rawValue?.toDate ? rawValue.toDate() : new Date(rawValue);
+
+  if (Number.isNaN(sourceDate.getTime())) {
+    return null;
+  }
+
+  try {
+    return new Date(sourceDate.toLocaleString("en-US", { timeZone: resolveTenantTimeZone() }));
+  } catch (_error) {
+    return new Date(sourceDate.getTime());
+  }
+}
+
+function capitalizeSentence(value) {
+  const text = String(value || "").trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
+}
+
+function getDateKeyFromDate(dateValue) {
+  if (!(dateValue instanceof Date) || Number.isNaN(dateValue.getTime())) {
+    return "";
+  }
+
+  const year = dateValue.getFullYear();
+  const month = String(dateValue.getMonth() + 1).padStart(2, "0");
+  const day = String(dateValue.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getAppointmentDateKey(rawValue) {
+  const dateValue = toTenantDate(rawValue);
+  return dateValue ? getDateKeyFromDate(dateValue) : "";
+}
+
+function getAppointmentMinutesInDay(rawValue) {
+  const dateValue = toTenantDate(rawValue);
+
+  if (!dateValue) {
+    return 0;
+  }
+
+  return dateValue.getHours() * 60 + dateValue.getMinutes();
+}
+
+function getAppointmentWeekStart(referenceDate) {
+  const resolvedDate = referenceDate instanceof Date ? new Date(referenceDate.getTime()) : new Date();
+  resolvedDate.setHours(0, 0, 0, 0);
+  const diff = (resolvedDate.getDay() + 7 - APPOINTMENT_WEEK_START_DAY) % 7;
+  resolvedDate.setDate(resolvedDate.getDate() - diff);
+  return resolvedDate;
+}
+
+function buildAppointmentWeekDays(referenceDate) {
+  const weekStart = getAppointmentWeekStart(referenceDate);
+
+  return Array.from({ length: APPOINTMENT_WEEK_DAY_COUNT }, (_, index) => {
+    const dateValue = new Date(weekStart.getTime());
+    dateValue.setDate(weekStart.getDate() + index);
+
+    return {
+      key: getDateKeyFromDate(dateValue),
+      date: dateValue,
+      dayName: capitalizeSentence(new Intl.DateTimeFormat("es-AR", {
+        weekday: "long"
+      }).format(dateValue)),
+      shortLabel: capitalizeSentence(new Intl.DateTimeFormat("es-AR", {
+        day: "2-digit",
+        month: "short"
+      }).format(dateValue)),
+      fullLabel: capitalizeSentence(new Intl.DateTimeFormat("es-AR", {
+        weekday: "long",
+        day: "2-digit",
+        month: "short"
+      }).format(dateValue))
+    };
+  });
+}
+
+function formatAppointmentWeekRange(days = []) {
+  if (!days.length) {
+    return "Semana actual";
+  }
+
+  const firstDay = days[0]?.date;
+  const lastDay = days[days.length - 1]?.date;
+
+  if (!(firstDay instanceof Date) || Number.isNaN(firstDay.getTime()) || !(lastDay instanceof Date) || Number.isNaN(lastDay.getTime())) {
+    return "Semana actual";
+  }
+
+  return `${capitalizeSentence(new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    month: "short"
+  }).format(firstDay))} al ${capitalizeSentence(new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    month: "short"
+  }).format(lastDay))}`;
 }
 
 function sortByMostRecent(items, fieldNames = ["updatedAt", "createdAt"]) {
@@ -407,6 +613,198 @@ function buildProductImagePreviewHtml(item) {
       <p>Puedes subir una foto para mostrar este producto tambien en la web publica.</p>
     </div>
   `;
+}
+
+function parseTimeInputToMinutes(rawValue) {
+  const [hours, minutes] = String(rawValue || "").split(":").map(Number);
+
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) {
+    return null;
+  }
+
+  return (hours * 60) + minutes;
+}
+
+function formatMinutesForTimeInput(rawValue) {
+  const minutes = Number(rawValue);
+
+  if (!Number.isFinite(minutes) || minutes < 0) {
+    return "";
+  }
+
+  const resolvedHours = String(Math.floor(minutes / 60)).padStart(2, "0");
+  const resolvedMinutes = String(minutes % 60).padStart(2, "0");
+  return `${resolvedHours}:${resolvedMinutes}`;
+}
+
+function normalizeServiceSpecialSchedule(rawSchedule = []) {
+  return (Array.isArray(rawSchedule) ? rawSchedule : [])
+    .map((entry) => {
+      const dateKey = String(entry?.dateKey || "").trim();
+      const startMinutes = Number(entry?.startMinutes);
+      const endMinutes = Number(entry?.endMinutes);
+
+      if (!dateKey || !Number.isFinite(startMinutes) || !Number.isFinite(endMinutes) || startMinutes < 0 || endMinutes > 1440 || startMinutes >= endMinutes) {
+        return null;
+      }
+
+      return {
+        dateKey,
+        startMinutes,
+        endMinutes
+      };
+    })
+    .filter(Boolean)
+    .sort((leftEntry, rightEntry) => (
+      leftEntry.dateKey.localeCompare(rightEntry.dateKey, "es")
+      || leftEntry.startMinutes - rightEntry.startMinutes
+      || leftEntry.endMinutes - rightEntry.endMinutes
+    ));
+}
+
+function buildServiceImagePreviewHtml(item) {
+  if (item?.imageUrl) {
+    return `
+      <div class="image-preview-card">
+        <img
+          class="image-preview-card__image"
+          src="${escapeHtml(item.imageUrl)}"
+          alt="${escapeHtml(item.name || "Servicio")}"
+          loading="lazy"
+        >
+        <div>
+          <strong>Imagen actual</strong>
+          <p>La guardamos para usarla mas adelante cuando abramos el detalle del servicio en la web publica.</p>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="image-preview-card image-preview-card--empty">
+      <strong>Sin imagen cargada</strong>
+      <p>Puedes subirla ahora aunque todavia no se renderice en la web publica.</p>
+    </div>
+  `;
+}
+
+function formatServiceSpecialScheduleSummary(service) {
+  if (service?.isSpecial !== true) {
+    return "Agenda regular del profesional.";
+  }
+
+  const schedule = normalizeServiceSpecialSchedule(service?.specialSchedule);
+
+  if (!schedule.length) {
+    return "Servicio especial sin fechas definidas.";
+  }
+
+  const uniqueDates = new Set(schedule.map((entry) => entry.dateKey)).size;
+  const firstWindow = schedule[0];
+  return `${uniqueDates} ${uniqueDates === 1 ? "fecha habilitada" : "fechas habilitadas"} desde ${firstWindow.dateKey}.`;
+}
+
+function buildServiceSpecialWindowRowHtml(windowEntry = {}) {
+  return `
+    <div class="service-special-window">
+      <label>
+        <span>Fecha</span>
+        <input class="service-special-window__date" type="date" value="${escapeHtml(windowEntry.dateKey || "")}">
+      </label>
+      <label>
+        <span>Desde</span>
+        <input class="service-special-window__start" type="time" step="1800" value="${escapeHtml(formatMinutesForTimeInput(windowEntry.startMinutes))}">
+      </label>
+      <label>
+        <span>Hasta</span>
+        <input class="service-special-window__end" type="time" step="1800" value="${escapeHtml(formatMinutesForTimeInput(windowEntry.endMinutes))}">
+      </label>
+      <button class="button button-secondary button-compact service-special-window__remove" type="button" data-action="remove-service-special-window">Quitar</button>
+    </div>
+  `;
+}
+
+function renderServiceSpecialScheduleEditor(entries = []) {
+  const container = getViewElement("service-special-windows");
+
+  if (!container) {
+    return;
+  }
+
+  const normalizedEntries = normalizeServiceSpecialSchedule(entries);
+  container.innerHTML = normalizedEntries.length
+    ? normalizedEntries.map((entry) => buildServiceSpecialWindowRowHtml(entry)).join("")
+    : `<p class="service-special-empty">Agrega al menos una fecha con rango horario para este servicio especial.</p>`;
+}
+
+function addServiceSpecialWindowRow(entry = {}) {
+  const container = getViewElement("service-special-windows");
+
+  if (!container) {
+    return;
+  }
+
+  const emptyState = container.querySelector(".service-special-empty");
+
+  if (emptyState) {
+    emptyState.remove();
+  }
+
+  container.insertAdjacentHTML("beforeend", buildServiceSpecialWindowRowHtml(entry));
+}
+
+function syncServiceSpecialFieldsVisibility() {
+  const serviceIsSpecialInput = getViewElement("service-is-special");
+  const serviceSpecialSettings = getViewElement("service-special-settings");
+  const serviceSpecialWindows = getViewElement("service-special-windows");
+
+  if (!serviceIsSpecialInput || !serviceSpecialSettings || !serviceSpecialWindows) {
+    return;
+  }
+
+  const isSpecial = serviceIsSpecialInput.checked;
+  serviceSpecialSettings.hidden = !isSpecial;
+
+  if (isSpecial && !serviceSpecialWindows.querySelector(".service-special-window")) {
+    addServiceSpecialWindowRow();
+  }
+}
+
+function collectServiceSpecialSchedule() {
+  const rows = [...document.querySelectorAll(".service-special-window")];
+  const entries = rows.map((row, index) => {
+    const dateKey = row.querySelector(".service-special-window__date")?.value || "";
+    const startMinutes = parseTimeInputToMinutes(row.querySelector(".service-special-window__start")?.value);
+    const endMinutes = parseTimeInputToMinutes(row.querySelector(".service-special-window__end")?.value);
+
+    if (!dateKey || startMinutes === null || endMinutes === null) {
+      throw new Error(`Completa fecha, hora de inicio y hora de fin en la fila ${index + 1}.`);
+    }
+
+    if (startMinutes >= endMinutes) {
+      throw new Error(`La hora de fin debe ser posterior a la de inicio en la fila ${index + 1}.`);
+    }
+
+    return {
+      dateKey,
+      startMinutes,
+      endMinutes
+    };
+  }).sort((leftEntry, rightEntry) => (
+    leftEntry.dateKey.localeCompare(rightEntry.dateKey, "es")
+    || leftEntry.startMinutes - rightEntry.startMinutes
+    || leftEntry.endMinutes - rightEntry.endMinutes
+  ));
+
+  entries.forEach((entry, index) => {
+    const nextEntry = entries[index + 1];
+
+    if (nextEntry && nextEntry.dateKey === entry.dateKey && nextEntry.startMinutes < entry.endMinutes) {
+      throw new Error(`Hay rangos horarios superpuestos el ${entry.dateKey}. Ajusta las franjas antes de guardar.`);
+    }
+  });
+
+  return entries;
 }
 
 function getSortedSalonMedia(items = state.salonMedia) {
@@ -939,6 +1337,7 @@ function hasAllowedManagerEmail() {
 function canManageAdminAccess() {
   return hasPanelAccess() && (
     state.profile?.canManageAdminAccess === true
+    || ["owner", "admin"].includes(String(state.profile?.membershipRole || "").toLowerCase())
     || hasAllowedManagerEmail()
     || isNataliaBusiness(state.profile)
   );
@@ -946,13 +1345,47 @@ function canManageAdminAccess() {
 
 function getVisibleNavItems() {
   return NAV_ITEMS.filter((item) => (
-    (item.id !== "usuarios" && item.id !== "salon")
+    !["usuarios", "salon", "configuraciones"].includes(item.id)
     || canManageAdminAccess()
   ));
 }
 
 function translateManagedAdminRole(role) {
-  return MANAGED_ADMIN_ROLES.find((item) => item.id === role)?.label || role || "Sin rol";
+  return getAvailableManagedAdminRoles().find((item) => item.id === role)?.label || role || "Sin rol";
+}
+
+function translateMembershipRole(role) {
+  const normalizedRole = String(role || "").toLowerCase();
+
+  if (normalizedRole === "owner") {
+    return "Owner";
+  }
+
+  if (normalizedRole === "admin") {
+    return "Admin";
+  }
+
+  if (normalizedRole === "professional") {
+    return "Profesional";
+  }
+
+  return role || "Sin perfil";
+}
+
+function findManagedAdminEntry(entryId = state.editor.teamEntryId, entryType = state.editor.teamEntryType) {
+  const sourceItems = entryType === "invite" ? state.adminAccess.invites : state.adminAccess.admins;
+  return sourceItems.find((item) => item.id === entryId) || null;
+}
+
+function isEditingManagedAdminEntry() {
+  return Boolean(state.editor.teamEntryId && state.editor.teamEntryType);
+}
+
+function canManageTargetAdmin(item) {
+  return item
+    && item.entryType === "admin"
+    && item.membershipRole !== "owner"
+    && item.id !== state.user?.uid;
 }
 
 function hasPanelAccess() {
@@ -976,7 +1409,7 @@ function resolveSessionHelperText() {
     return "Tu acceso esta en revision.";
   }
 
-  return "Inicia sesion con Google para administrar tu negocio.";
+  return "Inicia sesion desde admin-web para administrar tu negocio.";
 }
 
 function translateAppointmentStatus(status) {
@@ -994,27 +1427,26 @@ function translateAppointmentSource(source) {
   const sources = {
     panel: "Panel",
     public: "Web",
-    web: "Web"
+    web: "Web",
+    "public-web": "Web publica"
   };
 
   return sources[source] || source || "Sin origen";
 }
 
 function resolveTenantPublicUrl() {
-  const customDomain = String(state.tenantData?.customDomain || "").trim();
-
-  if (customDomain) {
-    return `https://${customDomain.replace(/^https?:\/\//, "")}`;
-  }
-
   if (!state.tenantId) {
-    return "#";
+    return "https://agendasimple-public.web.app/";
   }
 
   const currentUrl = new URL(window.location.href);
-  const publicHost = currentUrl.host.startsWith("admin.")
-    ? currentUrl.host.replace(/^admin\./, "")
-    : currentUrl.host;
+  let publicHost = currentUrl.host;
+
+  if (publicHost === "rockeala-admin.web.app" || publicHost === "agendasimple-admin.web.app") {
+    publicHost = "agendasimple-public.web.app";
+  } else if (publicHost.startsWith("admin.")) {
+    publicHost = publicHost.replace(/^admin\./, "");
+  }
 
   return `${currentUrl.protocol}//${publicHost}/${state.tenantId}`;
 }
@@ -1045,8 +1477,39 @@ function applyTenantBranding() {
   }
 }
 
+function applyTenantSnapshot(tenantId, tenantData) {
+  state.tenantId = tenantId;
+  state.tenantData = {
+    id: tenantId,
+    ...tenantData
+  };
+  syncTenantRolesFromTenantData();
+  localStorage.setItem(TENANT_STORAGE_KEY, tenantId);
+}
+
+async function refreshTenantContext() {
+  if (!state.tenantId || !firebaseReady || !db) {
+    return false;
+  }
+
+  const tenantSnapshot = await getDoc(doc(db, "tenants", state.tenantId));
+
+  if (!tenantSnapshot.exists()) {
+    throw new Error("tenant-not-found");
+  }
+
+  applyTenantSnapshot(tenantSnapshot.id, tenantSnapshot.data() || {});
+  applyTenantBranding();
+  return true;
+}
+
 async function loadTenantContext() {
   const tenantId = resolveAdminTenantId();
+  debugLog("load-tenant-context-start", {
+    pathname: window.location.pathname,
+    search: window.location.search,
+    tenantId
+  });
 
   if (!tenantId) {
     state.authResolved = true;
@@ -1083,14 +1546,20 @@ async function loadTenantContext() {
       return false;
     }
 
-    state.tenantId = tenantId;
-    state.tenantData = {
-      id: tenantSnapshot.id,
-      ...tenantData
-    };
+    applyTenantSnapshot(tenantId, tenantData);
+    debugLog("load-tenant-context-success", {
+      tenantId,
+      adminEnabled: tenantData.adminEnabled !== false,
+      active: tenantData.active === true
+    });
     applyTenantBranding();
     return true;
   } catch (error) {
+    debugLog("load-tenant-context-error", {
+      tenantId,
+      code: error?.code || "",
+      message: error?.message || ""
+    });
     state.authResolved = true;
     setAccessBlocked("No pudimos cargar la configuracion de este negocio.", "error");
     return false;
@@ -1143,6 +1612,26 @@ function getViewElement(id) {
   return viewRoot ? viewRoot.querySelector(`#${id}`) : null;
 }
 
+function syncTurnosWeekFocus() {
+  if (state.activeView !== "turnos" || !window.matchMedia("(max-width: 760px)").matches) {
+    return;
+  }
+
+  const currentDayColumn = viewRoot?.querySelector(".day-column.is-current");
+
+  if (!currentDayColumn) {
+    return;
+  }
+
+  window.requestAnimationFrame(() => {
+    currentDayColumn.scrollIntoView({
+      behavior: "auto",
+      block: "nearest",
+      inline: "center"
+    });
+  });
+}
+
 function applyMessageToElement(element, message) {
   if (!element) {
     return;
@@ -1156,10 +1645,50 @@ function applyMessageToElement(element, message) {
   }
 }
 
+function clearToastDismissTimer(scope) {
+  if (!toastDismissTimers[scope]) {
+    return;
+  }
+
+  window.clearTimeout(toastDismissTimers[scope]);
+  toastDismissTimers[scope] = 0;
+}
+
+function shouldAutoDismissToast(scope, text = "") {
+  if (!text || !["auth", "profile"].includes(scope)) {
+    return false;
+  }
+
+  return hasPanelAccess();
+}
+
+function scheduleToastDismiss(scope, text = "") {
+  clearToastDismissTimer(scope);
+
+  if (!shouldAutoDismissToast(scope, text)) {
+    return;
+  }
+
+  toastDismissTimers[scope] = window.setTimeout(() => {
+    if (state.messages[scope]?.text !== text) {
+      return;
+    }
+
+    state.messages[scope] = createEmptyMessage();
+    renderBannerState();
+  }, TOAST_AUTO_DISMISS_MS);
+}
+
 function setScopedMessage(scope, text = "", tone = "") {
   state.messages[scope] = { text, tone };
 
   if (scope === "auth" || scope === "profile") {
+    if (!text) {
+      clearToastDismissTimer(scope);
+    } else {
+      scheduleToastDismiss(scope, text);
+    }
+
     renderBannerState();
 
     if (!hasPanelAccess()) {
@@ -1350,31 +1879,469 @@ function buildMetricsHtml() {
   `).join("");
 }
 
+function resolveAdminDisplayName(adminId) {
+  if (!adminId) {
+    return "";
+  }
+
+  if (state.profile?.id === adminId) {
+    return resolveAdminName();
+  }
+
+  return state.adminAccess.admins.find((admin) => admin.id === adminId)?.displayName || "";
+}
+
+function formatAppointmentTime(rawValue) {
+  if (!rawValue) {
+    return "--:--";
+  }
+
+  const dateValue = rawValue?.toDate ? rawValue.toDate() : new Date(rawValue);
+
+  if (Number.isNaN(dateValue.getTime())) {
+    return "--:--";
+  }
+
+  return new Intl.DateTimeFormat("es-AR", {
+    timeZone: resolveTenantTimeZone(),
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(dateValue);
+}
+
+function formatAppointmentDay(rawValue) {
+  if (!rawValue) {
+    return "Sin fecha";
+  }
+
+  const dateValue = rawValue?.toDate ? rawValue.toDate() : new Date(rawValue);
+
+  if (Number.isNaN(dateValue.getTime())) {
+    return "Sin fecha";
+  }
+
+  return new Intl.DateTimeFormat("es-AR", {
+    timeZone: resolveTenantTimeZone(),
+    weekday: "short",
+    day: "2-digit",
+    month: "short"
+  }).format(dateValue);
+}
+
+function getAppointmentCardClass(status) {
+  const normalizedStatus = String(status || "").toLowerCase();
+
+  if (normalizedStatus === "cancelled") {
+    return "is-cancelled";
+  }
+
+  if (normalizedStatus === "completed") {
+    return "is-completed";
+  }
+
+  if (normalizedStatus === "confirmed") {
+    return "is-confirmed";
+  }
+
+  return "is-pending";
+}
+
+function buildAppointmentActionsHtml(appointment) {
+  const appointmentId = escapeHtml(appointment.id);
+  const status = String(appointment.status || "").toLowerCase();
+
+  if (status === "pending") {
+    return `
+      <div class="appointment-card__actions">
+        <button class="button button-primary button-compact" type="button" data-action="appointment-status" data-id="${appointmentId}" data-status="confirmed">Confirmar</button>
+        <button class="button button-danger button-compact" type="button" data-action="appointment-status" data-id="${appointmentId}" data-status="cancelled">Cancelar</button>
+      </div>
+    `;
+  }
+
+  if (status === "confirmed") {
+    return `
+      <div class="appointment-card__actions">
+        <button class="button button-primary button-compact" type="button" data-action="appointment-status" data-id="${appointmentId}" data-status="completed">Completar</button>
+        <button class="button button-secondary button-compact" type="button" data-action="appointment-status" data-id="${appointmentId}" data-status="cancelled">Cancelar</button>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="appointment-card__actions appointment-card__actions--closed">
+      <span class="appointment-card__closed-copy">Este turno ya no requiere acciones.</span>
+    </div>
+  `;
+}
+
 function buildAppointmentsHtml(items = state.appointments, { emptyMessage = "Todavia no hay turnos para mostrar.", showActions = true } = {}) {
   if (items.length === 0) {
     return `<article class="empty-state">${escapeHtml(emptyMessage)}</article>`;
   }
 
-  return items.map((appointment) => `
-    <article class="stack-item">
-      <div class="stack-item__meta">
-        <div>
-          <strong>${escapeHtml(appointment.serviceName)}</strong>
-          <p>${escapeHtml(appointment.clientName)} - ${escapeHtml(formatDateTime(appointment.requestedStartAt))}</p>
+  return items.map((appointment) => {
+    const cardClass = getAppointmentCardClass(appointment.status);
+    const serviceName = appointment.serviceName || "Servicio sin nombre";
+    const clientName = appointment.clientName || "Cliente sin nombre";
+    const professionalName = canManageAdminAccess() && appointment.adminId
+      ? resolveAdminDisplayName(appointment.adminId) || appointment.adminId
+      : "";
+    const durationLabel = `${escapeHtml(appointment.estimatedDurationMinutes || 0)} min`;
+    const sourceLabel = translateAppointmentSource(appointment.source);
+
+    return `
+      <article class="stack-item appointment-card ${cardClass}">
+        <div class="appointment-card__header">
+          <div class="appointment-card__time-block">
+            <strong class="appointment-card__time">${escapeHtml(formatAppointmentTime(appointment.requestedStartAt))}</strong>
+            <span class="appointment-card__day">${escapeHtml(formatAppointmentDay(appointment.requestedStartAt))}</span>
+          </div>
+          <span class="tag is-${escapeHtml(String(appointment.status || "").toLowerCase())}">${escapeHtml(translateAppointmentStatus(appointment.status))}</span>
         </div>
-        <span class="tag is-${escapeHtml(appointment.status)}">${escapeHtml(translateAppointmentStatus(appointment.status))}</span>
+        <div class="appointment-card__body">
+          <strong class="appointment-card__client">${escapeHtml(clientName)}</strong>
+          <p class="appointment-card__service">${escapeHtml(serviceName)}</p>
+          <div class="appointment-card__meta">
+            ${professionalName ? `<span>Profesional: ${escapeHtml(professionalName)}</span>` : ""}
+            <span>Duracion: ${durationLabel}</span>
+            <span>Origen: ${escapeHtml(sourceLabel)}</span>
+          </div>
+          ${appointment.notes ? `<div class="stack-item__notes appointment-card__notes">${escapeHtml(appointment.notes)}</div>` : ""}
+        </div>
+        ${showActions ? buildAppointmentActionsHtml(appointment) : ""}
+      </article>
+    `;
+  }).join("");
+}
+
+function resolveAppointmentProfessionalName(appointment) {
+  if (!appointment) {
+    return "Profesional";
+  }
+
+  const explicitName = String(
+    appointment.professionalName
+    || appointment.adminDisplayName
+    || appointment.adminName
+    || ""
+  ).trim();
+
+  if (explicitName) {
+    return explicitName;
+  }
+
+  if (appointment.adminId && state.profile?.id === appointment.adminId) {
+    return resolveAdminName();
+  }
+
+  const managedName = resolveAdminDisplayName(appointment.adminId);
+
+  if (managedName) {
+    return managedName;
+  }
+
+  if (appointment.serviceArea) {
+    return appointment.serviceArea;
+  }
+
+  return appointment.adminId || "Profesional";
+}
+
+function resolveAppointmentProfessionalKey(appointment) {
+  return appointment?.adminId || slugify(resolveAppointmentProfessionalName(appointment)) || appointment?.id || "unknown";
+}
+
+function getAppointmentProfessionalTheme(index) {
+  return APPOINTMENT_THEME_PALETTE[index % APPOINTMENT_THEME_PALETTE.length] || APPOINTMENT_THEME_PALETTE[0];
+}
+
+function buildAppointmentThemeStyle(theme) {
+  return `--pro-color:${theme.color}; --card-bg:${theme.background};`;
+}
+
+function buildTurnosWeekModel(items = state.appointments) {
+  const sortedAppointments = [...items]
+    .map((appointment) => ({
+      ...appointment,
+      appointmentDate: toTenantDate(appointment.requestedStartAt),
+      dateKey: getAppointmentDateKey(appointment.requestedStartAt),
+      professionalKey: resolveAppointmentProfessionalKey(appointment),
+      professionalName: resolveAppointmentProfessionalName(appointment)
+    }))
+    .filter((appointment) => appointment.appointmentDate && appointment.dateKey)
+    .sort((leftAppointment, rightAppointment) => {
+      const dateDiff = leftAppointment.appointmentDate.getTime() - rightAppointment.appointmentDate.getTime();
+      if (dateDiff !== 0) {
+        return dateDiff;
+      }
+
+      return leftAppointment.professionalName.localeCompare(rightAppointment.professionalName, "es");
+    });
+
+  const today = toTenantDate(new Date()) || new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayWeekDays = buildAppointmentWeekDays(today);
+  const todayWeekKeys = new Set(todayWeekDays.map((day) => day.key));
+  const referenceAppointment = sortedAppointments.find((appointment) => appointment.appointmentDate >= today)
+    || sortedAppointments[0]
+    || null;
+  const referenceDate = sortedAppointments.some((appointment) => todayWeekKeys.has(appointment.dateKey))
+    ? today
+    : (referenceAppointment?.appointmentDate || today);
+  const weekDays = buildAppointmentWeekDays(referenceDate);
+  const weekKeys = new Set(weekDays.map((day) => day.key));
+  const weekAppointments = sortedAppointments.filter((appointment) => weekKeys.has(appointment.dateKey));
+  const professionalEntries = Array.from(new Map(
+    weekAppointments.map((appointment) => [
+      appointment.professionalKey,
+      {
+        id: appointment.professionalKey,
+        name: appointment.professionalName
+      }
+    ])
+  ).values()).sort((leftProfessional, rightProfessional) => (
+    leftProfessional.name.localeCompare(rightProfessional.name, "es")
+  )).map((professional, index) => ({
+    ...professional,
+    index,
+    theme: getAppointmentProfessionalTheme(index)
+  }));
+  const professionalMap = new Map(professionalEntries.map((professional) => [professional.id, professional]));
+
+  if (
+    state.appointmentUi.selectedProfessionalId !== "all"
+    && !professionalMap.has(state.appointmentUi.selectedProfessionalId)
+  ) {
+    state.appointmentUi.selectedProfessionalId = "all";
+  }
+
+  const visibleAppointments = state.appointmentUi.selectedProfessionalId === "all"
+    ? weekAppointments
+    : weekAppointments.filter((appointment) => appointment.professionalKey === state.appointmentUi.selectedProfessionalId);
+  const focusDayKey = weekKeys.has(getDateKeyFromDate(today))
+    ? getDateKeyFromDate(today)
+    : (weekAppointments[0]?.dateKey || weekDays[0]?.key || "");
+
+  return {
+    weekDays,
+    weekAppointments,
+    visibleAppointments,
+    professionals: professionalEntries,
+    professionalMap,
+    focusDayKey,
+    weekRangeLabel: formatAppointmentWeekRange(weekDays)
+  };
+}
+
+function buildAppointmentsProfessionalFilterHtml(model) {
+  const professionals = model?.professionals || [];
+
+  if (!professionals.length) {
+    return `<p class="weekly-agenda__helper">No hay especialistas activos para esta semana.</p>`;
+  }
+
+  const activeProfessionalId = state.appointmentUi.selectedProfessionalId || "all";
+
+  return `
+    <button class="pro-pill ${activeProfessionalId === "all" ? "is-active" : ""}" type="button" data-action="appointment-filter" data-id="all">
+      <span class="pro-pill__swatch"></span>
+      Todos
+    </button>
+    ${professionals.map((professional) => {
+      const isActive = professional.id === activeProfessionalId;
+      return `
+        <button
+          class="pro-pill ${isActive ? "is-active" : ""} ${activeProfessionalId !== "all" && !isActive ? "is-muted" : ""}"
+          type="button"
+          data-action="appointment-filter"
+          data-id="${escapeHtml(professional.id)}"
+          style="${buildAppointmentThemeStyle(professional.theme)}"
+        >
+          <span class="pro-pill__swatch"></span>
+          ${escapeHtml(professional.name)}
+        </button>
+      `;
+    }).join("")}
+  `;
+}
+
+function buildAppointmentsWeekBoardHtml(model) {
+  if (!model.weekAppointments.length) {
+    return `<article class="empty-state">Todavia no hay turnos para la semana seleccionada.</article>`;
+  }
+
+  const hours = Array.from(
+    { length: APPOINTMENT_DAY_END_HOUR - APPOINTMENT_DAY_START_HOUR },
+    (_, index) => APPOINTMENT_DAY_START_HOUR + index
+  );
+
+  return `
+    <div class="week-board">
+      <aside class="time-rail" aria-hidden="true">
+        ${hours.map((hour) => `<span>${String(hour).padStart(2, "0")}:00</span>`).join("")}
+      </aside>
+      <div class="week-board__viewport">
+        <div class="week-board__days">
+          ${model.weekDays.map((day) => {
+            const dayAppointments = model.visibleAppointments.filter((appointment) => appointment.dateKey === day.key);
+            const overlapMap = new Map();
+
+            return `
+              <section class="day-column ${day.key === model.focusDayKey ? "is-current" : ""}">
+                <header class="day-column__header">
+                  <div class="day-column__label">
+                    <span class="day-column__name">${escapeHtml(day.dayName)}</span>
+                    <span class="day-column__date">${escapeHtml(day.shortLabel)}</span>
+                  </div>
+                  <span class="day-column__count">${escapeHtml(dayAppointments.length)}</span>
+                </header>
+                <div class="day-column__body">
+                  ${dayAppointments.map((appointment) => {
+                    const professional = model.professionalMap.get(appointment.professionalKey)
+                      || { index: 0, theme: getAppointmentProfessionalTheme(0), name: appointment.professionalName };
+                    const overlapKey = String(getAppointmentMinutesInDay(appointment.requestedStartAt));
+                    const stackIndex = overlapMap.get(overlapKey) || 0;
+                    overlapMap.set(overlapKey, stackIndex + 1);
+
+                    const startMinutes = Math.max(0, getAppointmentMinutesInDay(appointment.requestedStartAt) - (APPOINTMENT_DAY_START_HOUR * 60));
+                    const topPx = Math.round((startMinutes / 60) * APPOINTMENT_HOUR_ROW_HEIGHT);
+                    const heightPx = Math.max(
+                      58,
+                      Math.round(((Math.max(appointment.estimatedDurationMinutes || 60, 30)) / 60) * APPOINTMENT_HOUR_ROW_HEIGHT) - 12
+                    );
+                    const statusClass = getAppointmentCardClass(appointment.status);
+
+                    return `
+                      <article
+                        class="booking-card ${statusClass}"
+                        data-action="appointment-open"
+                        data-id="${escapeHtml(appointment.id)}"
+                        style="${buildAppointmentThemeStyle(professional.theme)} --booking-top:${topPx}px; --booking-height:${heightPx}px; --stack:${stackIndex}; --pro-offset:${professional.index % 4}; --z:${stackIndex + 2};"
+                      >
+                        <span class="booking-card__pro">${escapeHtml(professional.name)}</span>
+                        <strong class="booking-card__client">${escapeHtml(appointment.clientName || "Cliente sin nombre")}</strong>
+                        <p class="booking-card__service">${escapeHtml(appointment.serviceName || "Servicio sin nombre")}</p>
+                      </article>
+                    `;
+                  }).join("")}
+                </div>
+              </section>
+            `;
+          }).join("")}
+        </div>
       </div>
-      <p>${escapeHtml(appointment.estimatedDurationMinutes)} min estimados - Origen: ${escapeHtml(translateAppointmentSource(appointment.source))}</p>
-      ${appointment.notes ? `<div class="stack-item__notes">${escapeHtml(appointment.notes)}</div>` : ""}
-      ${showActions ? `
-        <div class="stack-item__actions">
-          <button class="button button-tertiary button-compact" type="button" data-action="appointment-status" data-id="${escapeHtml(appointment.id)}" data-status="confirmed">Confirmar</button>
-          <button class="button button-tertiary button-compact" type="button" data-action="appointment-status" data-id="${escapeHtml(appointment.id)}" data-status="completed">Completar</button>
-          <button class="button button-tertiary button-compact" type="button" data-action="appointment-status" data-id="${escapeHtml(appointment.id)}" data-status="cancelled">Cancelar</button>
+    </div>
+  `;
+}
+
+function buildAppointmentDetailActionsHtml(appointment) {
+  const appointmentId = escapeHtml(appointment.id);
+  const status = String(appointment.status || "").toLowerCase();
+
+  if (status === "pending") {
+    return `
+      <button class="button button-danger button-compact" type="button" data-action="appointment-status" data-id="${appointmentId}" data-status="cancelled">Cancelar</button>
+      <button class="button button-primary button-compact" type="button" data-action="appointment-status" data-id="${appointmentId}" data-status="confirmed">Confirmar</button>
+      <button class="button button-secondary button-compact" type="button" data-action="appointment-reschedule" data-id="${appointmentId}">Reprogramar</button>
+    `;
+  }
+
+  if (status === "confirmed") {
+    return `
+      <button class="button button-danger button-compact" type="button" data-action="appointment-status" data-id="${appointmentId}" data-status="cancelled">Cancelar</button>
+      <button class="button button-primary button-compact" type="button" data-action="appointment-status" data-id="${appointmentId}" data-status="completed">Completar</button>
+      <button class="button button-secondary button-compact" type="button" data-action="appointment-reschedule" data-id="${appointmentId}">Reprogramar</button>
+    `;
+  }
+
+  return `
+    <span class="appointment-detail__helper">Este turno ya cambio de estado. Solo dejamos visible la opcion de reprogramar.</span>
+    <button class="button button-secondary button-compact" type="button" data-action="appointment-reschedule" data-id="${appointmentId}">Reprogramar</button>
+  `;
+}
+
+function buildAppointmentDetailModalHtml() {
+  const appointment = state.appointments.find((item) => item.id === state.appointmentUi.detailAppointmentId);
+
+  if (!appointment) {
+    if (state.appointmentUi.detailAppointmentId) {
+      state.appointmentUi.detailAppointmentId = "";
+      state.appointmentUi.detailFeedback = "";
+    }
+    return "";
+  }
+
+  const professionalName = resolveAppointmentProfessionalName(appointment);
+  const professionalKey = resolveAppointmentProfessionalKey(appointment);
+  const professionalKeys = Array.from(new Set(state.appointments.map(resolveAppointmentProfessionalKey))).sort();
+  const professionalIndex = Math.max(0, professionalKeys.indexOf(professionalKey));
+  const theme = getAppointmentProfessionalTheme(professionalIndex);
+  const statusClass = `is-${escapeHtml(String(appointment.status || "").toLowerCase())}`;
+  const statusLabel = translateAppointmentStatus(appointment.status);
+  const detailFeedback = state.appointmentUi.detailFeedback
+    || "Desde aca puedes revisar el turno y disparar sus acciones principales.";
+
+  return `
+    <div class="appointment-detail-overlay" id="appointment-detail-overlay">
+      <article class="appointment-detail" style="${buildAppointmentThemeStyle(theme)}">
+        <header class="appointment-detail__header">
+          <div class="appointment-detail__topbar">
+            <div>
+              <span class="appointment-detail__status tag ${statusClass}">${escapeHtml(statusLabel)}</span>
+              <strong class="appointment-detail__time">${escapeHtml(formatAppointmentTime(appointment.requestedStartAt))}</strong>
+              <p class="appointment-detail__service">${escapeHtml(appointment.serviceName || "Servicio sin nombre")}</p>
+            </div>
+            <button class="appointment-detail__close" type="button" data-action="appointment-close-detail" aria-label="Cerrar detalle">x</button>
+          </div>
+        </header>
+        <div class="appointment-detail__body">
+          <div>
+            <strong class="appointment-detail__client">${escapeHtml(appointment.clientName || "Cliente sin nombre")}</strong>
+          </div>
+          <div class="appointment-detail__meta">
+            <div class="appointment-detail__meta-item">
+              <span class="appointment-detail__label">Profesional</span>
+              <span class="appointment-detail__value">${escapeHtml(professionalName)}</span>
+            </div>
+            <div class="appointment-detail__meta-item">
+              <span class="appointment-detail__label">Dia</span>
+              <span class="appointment-detail__value">${escapeHtml(formatDateTime(appointment.requestedStartAt))}</span>
+            </div>
+            <div class="appointment-detail__meta-item">
+              <span class="appointment-detail__label">Duracion</span>
+              <span class="appointment-detail__value">${escapeHtml(appointment.estimatedDurationMinutes || 0)} min</span>
+            </div>
+            <div class="appointment-detail__meta-item">
+              <span class="appointment-detail__label">Origen</span>
+              <span class="appointment-detail__value">${escapeHtml(translateAppointmentSource(appointment.source))}</span>
+            </div>
+            <div class="appointment-detail__meta-item">
+              <span class="appointment-detail__label">Telefono</span>
+              <span class="appointment-detail__value">${escapeHtml(appointment.clientPhone || "Sin telefono")}</span>
+            </div>
+            <div class="appointment-detail__meta-item">
+              <span class="appointment-detail__label">Email</span>
+              <span class="appointment-detail__value">${escapeHtml(appointment.clientEmail || "Sin email")}</span>
+            </div>
+          </div>
+          ${appointment.notes ? `<p class="appointment-detail__notes">${escapeHtml(appointment.notes)}</p>` : ""}
+          ${appointment.serviceArea ? `
+            <div class="appointment-detail__meta-item appointment-detail__meta-item--wide">
+              <span class="appointment-detail__label">Area</span>
+              <span class="appointment-detail__value">${escapeHtml(appointment.serviceArea)}</span>
+            </div>
+          ` : ""}
+          <div class="appointment-detail__footer">
+            <div class="appointment-detail__actions">
+              ${buildAppointmentDetailActionsHtml(appointment)}
+            </div>
+            <p class="appointment-detail__feedback">${escapeHtml(detailFeedback)}</p>
+          </div>
         </div>
-      ` : ""}
-    </article>
-  `).join("");
+      </article>
+    </div>
+  `;
 }
 
 function buildServicesHtml(items = state.services, { emptyMessage = "Todavia no cargaste servicios.", showActions = true } = {}) {
@@ -1384,14 +2351,29 @@ function buildServicesHtml(items = state.services, { emptyMessage = "Todavia no 
 
   return items.map((service) => `
     <article class="stack-item">
+      ${service.imageUrl ? `
+        <div class="stack-item__media">
+          <img
+            class="stack-item__image"
+            src="${escapeHtml(service.imageUrl)}"
+            alt="${escapeHtml(service.name || "Servicio")}"
+            loading="lazy"
+          >
+        </div>
+      ` : ""}
       <div class="stack-item__meta">
         <div>
           <strong>${escapeHtml(service.name)}</strong>
           <p>${escapeHtml(service.description || "Sin descripcion publica.")}</p>
         </div>
-        <span class="tag">${service.publicVisible ? "Publico" : "Oculto"}</span>
+        <div class="surface-panel__chips">
+          <span class="tag">${service.publicVisible ? "Publico" : "Oculto"}</span>
+          ${service.isSpecial ? `<span class="tag is-pending">Especial</span>` : ""}
+          ${service.imageUrl ? `<span class="tag is-confirmed">Con imagen</span>` : ""}
+        </div>
       </div>
       <p>${escapeHtml(formatMoney(service.price))} - ${escapeHtml(service.durationMinutes)} min - posicion en la web ${escapeHtml(service.sortOrder || 0)}</p>
+      <p>${escapeHtml(formatServiceSpecialScheduleSummary(service))}</p>
       ${showActions ? `
         <div class="stack-item__actions">
           <button class="button button-tertiary button-compact" type="button" data-action="edit-service" data-id="${escapeHtml(service.id)}">Editar</button>
@@ -1489,17 +2471,7 @@ function buildProductsHtml(items = state.products, { emptyMessage = "Todavia no 
 }
 
 function renderViewHero({ eyebrow, title, description, chip }) {
-  return `
-    <header class="view-hero">
-      <div class="view-hero__meta">
-        <div>
-          <h3>${escapeHtml(title)}</h3>
-          <p>${escapeHtml(description)}</p>
-        </div>
-        <span class="card-chip">${escapeHtml(chip)}</span>
-      </div>
-    </header>
-  `;
+  return "";
 }
 
 function renderLockedView({ eyebrow, title, description }) {
@@ -1589,22 +2561,24 @@ function renderTurnosMarkup() {
 
   return `
     <section class="view-stage">
-      ${renderViewHero({
-        eyebrow: "Turnos",
-        title: "Turnos y reservas.",
-        description: "Revisa solicitudes, confirma visitas y marca los turnos ya atendidos.",
-        chip: "Agenda"
-      })}
       <article class="surface-panel">
-        <div class="surface-panel__header">
+        <div class="weekly-agenda__intro surface-panel__header">
           <div>
-            <p class="eyebrow">Proximas reservas</p>
-            <h3>Solicitudes y estados</h3>
+            <p class="eyebrow">Alternativa semanal</p>
+            <h3>Agenda por especialistas</h3>
+            <p class="weekly-agenda__copy">
+              Cada bloque muestra cliente y servicio, con color por profesional y superposicion suave cuando coinciden horarios.
+            </p>
           </div>
-          <span class="card-chip">${escapeHtml(state.appointments.length)} turnos</span>
+          <div class="surface-panel__chips">
+            <span class="card-chip" id="appointments-week-range">Semana actual</span>
+            <span class="card-chip" id="appointments-week-count">${escapeHtml(state.appointments.length)} turnos</span>
+          </div>
         </div>
-        <div class="stack-list" id="appointments-list"></div>
+        <div class="professional-filter" id="appointments-professional-filter"></div>
+        <div id="appointments-week-board"></div>
       </article>
+      <div id="appointment-detail-root"></div>
     </section>
   `;
 }
@@ -1662,6 +2636,29 @@ function renderServicesMarkup() {
                 <span>Descripcion</span>
                 <textarea id="service-description" rows="3" placeholder="Descripcion visible en la web publica."></textarea>
               </label>
+
+              <label class="field-wide">
+                <span>Imagen del servicio</span>
+                <input id="service-image" type="file" accept="image/*">
+              </label>
+
+              <div class="field-wide" id="service-image-preview"></div>
+
+              <label class="checkbox-field field-wide">
+                <input id="service-is-special" type="checkbox">
+                <span>Este es un servicio especial con fechas y horarios definidos por la profesional</span>
+              </label>
+
+              <div class="field-wide service-special-panel" id="service-special-settings" hidden>
+                <div class="service-special-panel__header">
+                  <div>
+                    <strong>Agenda especial</strong>
+                    <p>Los clientes solo podran reservar dentro de estas fechas y rangos horarios.</p>
+                  </div>
+                  <button class="button button-secondary button-compact" type="button" data-action="add-service-special-window">Agregar fecha</button>
+                </div>
+                <div class="service-special-windows" id="service-special-windows"></div>
+              </div>
 
               <label class="checkbox-field field-wide">
                 <input id="service-public-visible" type="checkbox" checked>
@@ -2152,24 +3149,192 @@ function buildManagedAdminEntriesHtml() {
     const isInvite = item.entryType === "invite";
     const badgeTone = isInvite ? "is-pending" : (item.active === false ? "is-cancelled" : "is-confirmed");
     const badgeText = isInvite ? "Pendiente" : (item.active === false ? "Pausado" : "Activo");
-    const businessName = item.businessName || `Rockeala ${translateManagedAdminRole(item.role)}`;
+    const businessName = item.businessName || `${state.tenantData?.businessName || "Rockeala"} ${translateManagedAdminRole(item.role)}`;
+    const canManageEntry = isInvite || canManageTargetAdmin(item);
+    const isBusy = state.adminAccess.actionId === `${item.entryType}:${item.id}`;
+    const roleLabel = `${translateManagedAdminRole(item.role)} - ${translateMembershipRole(item.membershipRole)}`;
 
     return `
       <article class="stack-item">
         <div class="stack-item__meta">
           <div>
             <strong>${escapeHtml(item.displayName || "Usuario del equipo")}</strong>
-            <p>${escapeHtml(item.email || "Sin email")} - ${escapeHtml(translateManagedAdminRole(item.role))}</p>
+            <p>${escapeHtml(item.email || "Sin email")} - ${escapeHtml(roleLabel)}</p>
           </div>
           <span class="tag ${badgeTone}">${escapeHtml(badgeText)}</span>
         </div>
-        <p>${escapeHtml(businessName)} - ${escapeHtml(isInvite ? "Esperando primer ingreso con Google." : "Ya puede entrar al panel.")}</p>
+        <p>${escapeHtml(businessName)} - ${escapeHtml(isInvite ? "Esperando primer ingreso con ese email." : "Ya puede entrar al panel.")}</p>
         <div class="stack-item__notes">
           ${escapeHtml(isInvite ? "Invitado" : "Alta activa")} desde ${escapeHtml(formatDateTime(item.createdAt || item.updatedAt))}
+          ${!isInvite ? ` - Turnos web: ${escapeHtml(item.publicBookingEnabled === false ? "ocultos" : "habilitados")}` : ""}
+        </div>
+        ${canManageEntry ? `
+          <div class="stack-item__actions">
+            <button class="button button-tertiary button-compact" type="button" data-action="edit-team-entry" data-entry-type="${escapeHtml(item.entryType)}" data-id="${escapeHtml(item.id)}" ${isBusy ? "disabled" : ""}>Editar</button>
+            ${!isInvite ? `
+              <button class="button button-secondary button-compact" type="button" data-action="toggle-team-access" data-entry-type="admin" data-id="${escapeHtml(item.id)}" ${isBusy ? "disabled" : ""}>${item.active === false ? "Reactivar" : "Suspender"}</button>
+            ` : ""}
+            <button class="button button-danger button-compact" type="button" data-action="delete-team-access" data-entry-type="${escapeHtml(item.entryType)}" data-id="${escapeHtml(item.id)}" ${isBusy ? "disabled" : ""}>${isBusy ? "Procesando..." : "Eliminar"}</button>
+          </div>
+        ` : `
+          <div class="stack-item__notes">Cuenta principal del tenant.</div>
+        `}
+      </article>
+    `;
+  }).join("");
+}
+
+function buildTenantRolesHtml() {
+  const roleOptions = getAvailableManagedAdminRoles();
+
+  if (roleOptions.length === 0) {
+    return `<article class="empty-state">Todavia no configuraste roles para este tenant.</article>`;
+  }
+
+  return roleOptions.map((roleOption) => {
+    const isDeleting = state.settingsUi.roleDeletingId === roleOption.id;
+
+    return `
+      <article class="stack-item">
+        <div class="stack-item__meta">
+          <div>
+            <strong>${escapeHtml(roleOption.label)}</strong>
+            <p>Id interno: ${escapeHtml(roleOption.id)}</p>
+          </div>
+          <span class="tag is-confirmed">Activo</span>
+        </div>
+        <div class="stack-item__actions">
+          <button class="button button-tertiary button-compact" type="button" data-action="edit-tenant-role" data-id="${escapeHtml(roleOption.id)}" ${state.settingsUi.roleSubmitting || isDeleting ? "disabled" : ""}>Editar</button>
+          <button class="button button-danger button-compact" type="button" data-action="delete-tenant-role" data-id="${escapeHtml(roleOption.id)}" ${state.settingsUi.roleSubmitting || isDeleting ? "disabled" : ""}>${isDeleting ? "Eliminando..." : "Eliminar"}</button>
         </div>
       </article>
     `;
   }).join("");
+}
+
+function renderSettingsMarkup() {
+  if (!hasPanelAccess()) {
+    return renderLockedView({
+      eyebrow: "Configuraciones",
+      title: "Inicia sesion para editar este tenant.",
+      description: "Desde aca la cuenta principal puede actualizar los datos del negocio y sus roles."
+    });
+  }
+
+  if (!canManageAdminAccess()) {
+    return renderLockedView({
+      eyebrow: "Configuraciones",
+      title: "Esta seccion esta reservada para la administradora principal.",
+      description: "Solo una cuenta owner o admin del tenant puede cambiar los datos del negocio y administrar roles."
+    });
+  }
+
+  return `
+    <section class="view-stage">
+      ${renderViewHero({
+        eyebrow: "Configuraciones",
+        title: "Configuracion del tenant.",
+        description: "Actualiza los datos generales del negocio y administra los roles disponibles para crear usuarios.",
+        chip: "Tenant"
+      })}
+      <section class="section-grid section-grid--split">
+        <article class="surface-panel">
+          <div class="surface-panel__header">
+            <div>
+              <p class="eyebrow">Datos del negocio</p>
+              <h3>Configuracion general</h3>
+            </div>
+            <span class="card-chip">${escapeHtml(state.tenantId || "tenant")}</span>
+          </div>
+          <form class="editor-form" id="tenant-settings-form">
+            <div class="form-grid">
+              <label>
+                <span>Tenant ID</span>
+                <input id="tenant-id" type="text" value="${escapeHtml(state.tenantId)}" disabled>
+              </label>
+
+              <label>
+                <span>Slug</span>
+                <input id="tenant-slug" type="text" value="${escapeHtml(state.tenantData?.slug || state.tenantId)}" disabled>
+              </label>
+
+              <label>
+                <span>Nombre interno</span>
+                <input id="tenant-name" type="text" required>
+              </label>
+
+              <label>
+                <span>Nombre visible del negocio</span>
+                <input id="tenant-business-name" type="text" required>
+              </label>
+
+              <label>
+                <span>Dominio personalizado</span>
+                <input id="tenant-custom-domain" type="text" placeholder="Opcional">
+              </label>
+
+              <label>
+                <span>Zona horaria</span>
+                <input id="tenant-timezone" type="text" required placeholder="America/Argentina/Buenos_Aires">
+              </label>
+
+              <label>
+                <span>WhatsApp</span>
+                <input id="tenant-whatsapp-phone" type="text" placeholder="54 9 11 ...">
+              </label>
+
+              <label class="field-wide">
+                <span>Mensaje inicial de WhatsApp</span>
+                <textarea id="tenant-whatsapp-message" rows="3" placeholder="Hola, quiero reservar un turno."></textarea>
+              </label>
+
+              <label class="checkbox-field">
+                <input id="tenant-public-enabled" type="checkbox">
+                <span>Web publica habilitada</span>
+              </label>
+
+              <label class="checkbox-field">
+                <input id="tenant-admin-enabled" type="checkbox">
+                <span>Panel admin habilitado</span>
+              </label>
+            </div>
+            <p class="status-message" id="tenant-settings-message"></p>
+            <div class="form-toolbar">
+              <button class="button button-primary" id="tenant-settings-submit" type="submit" ${state.settingsUi.saving ? "disabled" : ""}>
+                ${state.settingsUi.saving ? "Guardando..." : "Guardar configuracion"}
+              </button>
+            </div>
+          </form>
+        </article>
+
+        <article class="surface-panel">
+          <div class="surface-panel__header">
+            <div>
+              <p class="eyebrow">Roles</p>
+              <h3>Roles del tenant</h3>
+            </div>
+            <span class="card-chip" id="tenant-role-count">${escapeHtml(getAvailableManagedAdminRoles().length)} roles</span>
+          </div>
+          <form class="editor-form" id="tenant-role-form">
+            <div class="form-grid">
+              <label class="field-wide">
+                <span>Nombre del rol</span>
+                <input id="tenant-role-label" type="text" required placeholder="Ej. Cosmetologia">
+              </label>
+            </div>
+            <p class="status-message" id="tenant-roles-message"></p>
+            <div class="form-toolbar">
+              <button class="button button-primary" id="tenant-role-submit" type="submit" ${state.settingsUi.roleSubmitting ? "disabled" : ""}>
+                ${state.settingsUi.roleSubmitting ? "Guardando..." : "Guardar rol"}
+              </button>
+              <button class="button button-secondary" id="tenant-role-reset" type="button" ${state.editor.tenantRoleId ? "" : "hidden"}>Cancelar edicion</button>
+            </div>
+          </form>
+          <div class="stack-list" id="tenant-role-list"></div>
+        </article>
+      </section>
+    </section>
+  `;
 }
 
 function renderUsersMarkup() {
@@ -2177,7 +3342,7 @@ function renderUsersMarkup() {
     return renderLockedView({
       eyebrow: "Usuarios",
       title: "Inicia sesion para administrar accesos.",
-      description: "Desde aca Natalia puede crear usuarios del equipo y asignarles un rol."
+      description: "Desde aca la cuenta owner puede crear usuarios del equipo y asignarles un rol."
     });
   }
 
@@ -2185,7 +3350,7 @@ function renderUsersMarkup() {
     return renderLockedView({
       eyebrow: "Usuarios",
       title: "Esta seccion esta reservada para la administradora principal.",
-      description: "Solo Natalia puede crear accesos y asignar roles para otras personas del equipo."
+      description: "Solo una cuenta owner o admin del tenant puede crear accesos y asignar roles para otras personas del equipo."
     });
   }
 
@@ -2194,7 +3359,7 @@ function renderUsersMarkup() {
       ${renderViewHero({
         eyebrow: "Usuarios",
         title: "Usuarios y accesos del equipo.",
-        description: "Crea usuarios para que entren al panel con Google y asignales un rol de trabajo.",
+        description: "Crea usuarios para que entren al panel y asignales un rol de trabajo.",
         chip: "Equipo"
       })}
       <section class="section-grid section-grid--split">
@@ -2202,9 +3367,9 @@ function renderUsersMarkup() {
           <div class="surface-panel__header">
             <div>
               <p class="eyebrow">Alta</p>
-              <h3>Nuevo acceso</h3>
+              <h3 id="team-form-title">Nuevo acceso</h3>
             </div>
-            <span class="card-chip">Invitacion</span>
+            <span class="card-chip" id="team-form-chip">Invitacion</span>
           </div>
           <form class="editor-form" id="team-form">
             <div class="form-grid">
@@ -2214,14 +3379,14 @@ function renderUsersMarkup() {
               </label>
 
               <label>
-                <span>Email de Google</span>
+                <span>Email de acceso</span>
                 <input id="team-email" type="email" required placeholder="ejemplo@gmail.com">
               </label>
 
               <label>
                 <span>Rol</span>
                 <select id="team-role" required>
-                  ${MANAGED_ADMIN_ROLES.map((roleOption) => `
+                  ${getAvailableManagedAdminRoles().map((roleOption) => `
                     <option value="${escapeHtml(roleOption.id)}">${escapeHtml(roleOption.label)}</option>
                   `).join("")}
                 </select>
@@ -2231,12 +3396,18 @@ function renderUsersMarkup() {
                 <span>Negocio visible</span>
                 <input id="team-business-name" type="text" placeholder="Opcional. Si lo dejas vacio usamos uno sugerido.">
               </label>
+
+              <label class="checkbox-field field-wide">
+                <input id="team-public-booking-enabled" type="checkbox" checked>
+                <span>Recibe turnos desde la web publica</span>
+              </label>
             </div>
             <p class="status-message" id="team-message"></p>
             <div class="form-toolbar">
               <button class="button button-primary" id="team-submit" type="submit" ${state.adminAccess.submitting ? "disabled" : ""}>
                 ${state.adminAccess.submitting ? "Creando acceso..." : "Crear usuario"}
               </button>
+              <button class="button button-secondary" id="team-reset" type="button" ${isEditingManagedAdminEntry() ? "" : "hidden"}>Cancelar edicion</button>
             </div>
           </form>
         </article>
@@ -2249,7 +3420,7 @@ function renderUsersMarkup() {
             </div>
             <span class="card-chip" id="team-list-count">${escapeHtml(state.adminAccess.admins.length + state.adminAccess.invites.length)} accesos</span>
           </div>
-          <p>Las personas invitadas deben entrar con Google usando exactamente el email cargado aca.</p>
+          <p>Las personas invitadas deben iniciar sesion usando exactamente el email cargado aca.</p>
           <div class="stack-list" id="team-list"></div>
         </article>
       </section>
@@ -2300,6 +3471,9 @@ function renderActiveView() {
     case "usuarios":
       viewRoot.innerHTML = renderUsersMarkup();
       break;
+    case "configuraciones":
+      viewRoot.innerHTML = renderSettingsMarkup();
+      break;
     case "dashboard":
     default:
       viewRoot.innerHTML = renderDashboardMarkup();
@@ -2319,6 +3493,8 @@ function refreshCurrentViewMessages() {
   applyMessageToElement(getViewElement("product-message"), state.messages.product);
   applyMessageToElement(getViewElement("salon-message"), state.messages.salon);
   applyMessageToElement(getViewElement("team-message"), state.messages.team);
+  applyMessageToElement(getViewElement("tenant-settings-message"), state.messages.settings);
+  applyMessageToElement(getViewElement("tenant-roles-message"), state.messages.roles);
 }
 
 function refreshCurrentViewData() {
@@ -2359,10 +3535,34 @@ function refreshCurrentViewData() {
       break;
     }
     case "turnos": {
-      const appointmentsList = getViewElement("appointments-list");
-      if (appointmentsList) {
-        appointmentsList.innerHTML = buildAppointmentsHtml();
+      const weekRange = getViewElement("appointments-week-range");
+      const weekCount = getViewElement("appointments-week-count");
+      const professionalFilter = getViewElement("appointments-professional-filter");
+      const weekBoard = getViewElement("appointments-week-board");
+      const appointmentDetailRoot = getViewElement("appointment-detail-root");
+      const weekModel = buildTurnosWeekModel();
+
+      if (weekRange) {
+        weekRange.textContent = weekModel.weekRangeLabel;
       }
+
+      if (weekCount) {
+        weekCount.textContent = `${weekModel.weekAppointments.length} turnos`;
+      }
+
+      if (professionalFilter) {
+        professionalFilter.innerHTML = buildAppointmentsProfessionalFilterHtml(weekModel);
+      }
+
+      if (weekBoard) {
+        weekBoard.innerHTML = buildAppointmentsWeekBoardHtml(weekModel);
+      }
+
+      if (appointmentDetailRoot) {
+        appointmentDetailRoot.innerHTML = buildAppointmentDetailModalHtml();
+      }
+
+      syncTurnosWeekFocus();
       break;
     }
     case "servicios": {
@@ -2498,6 +3698,7 @@ function refreshCurrentViewData() {
       const teamList = getViewElement("team-list");
       const teamListCount = getViewElement("team-list-count");
       const teamSubmit = getViewElement("team-submit");
+      const teamReset = getViewElement("team-reset");
 
       if (teamList) {
         teamList.innerHTML = buildManagedAdminEntriesHtml();
@@ -2509,7 +3710,44 @@ function refreshCurrentViewData() {
 
       if (teamSubmit) {
         teamSubmit.disabled = state.adminAccess.submitting;
-        teamSubmit.textContent = state.adminAccess.submitting ? "Creando acceso..." : "Crear usuario";
+        teamSubmit.textContent = state.adminAccess.submitting
+          ? (isEditingManagedAdminEntry() ? "Guardando..." : "Creando acceso...")
+          : (isEditingManagedAdminEntry() ? "Guardar cambios" : "Crear usuario");
+      }
+
+      if (teamReset) {
+        teamReset.hidden = !isEditingManagedAdminEntry();
+      }
+
+      break;
+    }
+    case "configuraciones": {
+      const tenantRoleList = getViewElement("tenant-role-list");
+      const tenantRoleCount = getViewElement("tenant-role-count");
+      const tenantSettingsSubmit = getViewElement("tenant-settings-submit");
+      const tenantRoleSubmit = getViewElement("tenant-role-submit");
+      const tenantRoleReset = getViewElement("tenant-role-reset");
+
+      if (tenantRoleList) {
+        tenantRoleList.innerHTML = buildTenantRolesHtml();
+      }
+
+      if (tenantRoleCount) {
+        tenantRoleCount.textContent = `${getAvailableManagedAdminRoles().length} roles`;
+      }
+
+      if (tenantSettingsSubmit) {
+        tenantSettingsSubmit.disabled = state.settingsUi.saving;
+        tenantSettingsSubmit.textContent = state.settingsUi.saving ? "Guardando..." : "Guardar configuracion";
+      }
+
+      if (tenantRoleSubmit) {
+        tenantRoleSubmit.disabled = state.settingsUi.roleSubmitting;
+        tenantRoleSubmit.textContent = state.settingsUi.roleSubmitting ? "Guardando..." : "Guardar rol";
+      }
+
+      if (tenantRoleReset) {
+        tenantRoleReset.hidden = !state.editor.tenantRoleId;
       }
 
       break;
@@ -2537,9 +3775,20 @@ function hydrateCurrentView() {
       populateSalonForm();
       break;
     case "usuarios":
+      populateTeamForm();
       if (canManageAdminAccess() && !state.adminAccess.loaded && !state.adminAccess.loading) {
         loadManagedAdminAccess();
       }
+      break;
+    case "turnos":
+      if (canManageAdminAccess() && !state.adminAccess.loaded && !state.adminAccess.loading) {
+        loadManagedAdminAccess();
+      }
+      syncTurnosWeekFocus();
+      break;
+    case "configuraciones":
+      populateTenantSettingsForm();
+      populateTenantRoleForm();
       break;
     default:
       syncClientDetailOverlayState();
@@ -2555,11 +3804,14 @@ function populateServiceForm() {
   const serviceDurationInput = getViewElement("service-duration");
   const serviceSortOrderInput = getViewElement("service-sort-order");
   const serviceDescriptionInput = getViewElement("service-description");
+  const serviceImageInput = getViewElement("service-image");
+  const serviceImagePreview = getViewElement("service-image-preview");
+  const serviceIsSpecialInput = getViewElement("service-is-special");
   const servicePublicVisibleInput = getViewElement("service-public-visible");
   const serviceFormTitle = getViewElement("service-form-title");
   const serviceSubmit = getViewElement("service-submit");
 
-  if (!serviceIdInput || !serviceNameInput || !servicePriceInput || !serviceDurationInput || !serviceSortOrderInput || !serviceDescriptionInput || !servicePublicVisibleInput || !serviceFormTitle || !serviceSubmit) {
+  if (!serviceIdInput || !serviceNameInput || !servicePriceInput || !serviceDurationInput || !serviceSortOrderInput || !serviceDescriptionInput || !serviceImageInput || !serviceImagePreview || !serviceIsSpecialInput || !servicePublicVisibleInput || !serviceFormTitle || !serviceSubmit) {
     return;
   }
 
@@ -2569,6 +3821,11 @@ function populateServiceForm() {
   serviceDurationInput.value = service ? Number(service.durationMinutes || 0) : "";
   serviceSortOrderInput.value = service ? Number(service.sortOrder || 0) : "";
   serviceDescriptionInput.value = service?.description || "";
+  serviceImageInput.value = "";
+  serviceImagePreview.innerHTML = buildServiceImagePreviewHtml(service);
+  serviceIsSpecialInput.checked = service?.isSpecial === true;
+  renderServiceSpecialScheduleEditor(service?.specialSchedule || []);
+  syncServiceSpecialFieldsVisibility();
   servicePublicVisibleInput.checked = service ? service.publicVisible !== false : true;
   serviceFormTitle.textContent = service ? `Editando ${service.name}` : "Nuevo servicio";
   serviceSubmit.textContent = service ? "Actualizar servicio" : "Guardar servicio";
@@ -2702,7 +3959,96 @@ function populateSalonForm() {
   applyMessageToElement(getViewElement("salon-message"), state.messages.salon);
 }
 
+function populateTeamForm() {
+  const teamEntry = findManagedAdminEntry();
+  const teamDisplayNameInput = getViewElement("team-display-name");
+  const teamEmailInput = getViewElement("team-email");
+  const teamRoleInput = getViewElement("team-role");
+  const teamBusinessNameInput = getViewElement("team-business-name");
+  const teamPublicBookingInput = getViewElement("team-public-booking-enabled");
+  const teamFormTitle = getViewElement("team-form-title");
+  const teamFormChip = getViewElement("team-form-chip");
+  const teamSubmit = getViewElement("team-submit");
+  const teamReset = getViewElement("team-reset");
+
+  if (!teamDisplayNameInput || !teamEmailInput || !teamRoleInput || !teamBusinessNameInput || !teamPublicBookingInput || !teamFormTitle || !teamFormChip || !teamSubmit || !teamReset) {
+    return;
+  }
+
+  const availableRoles = getAvailableManagedAdminRoles();
+  teamDisplayNameInput.value = teamEntry?.displayName || "";
+  teamEmailInput.value = teamEntry?.email || "";
+  teamRoleInput.innerHTML = availableRoles.map((roleOption) => `
+    <option value="${escapeHtml(roleOption.id)}">${escapeHtml(roleOption.label)}</option>
+  `).join("");
+  teamRoleInput.disabled = availableRoles.length === 0;
+  teamRoleInput.value = teamEntry?.role && availableRoles.some((roleOption) => roleOption.id === teamEntry.role)
+    ? teamEntry.role
+    : (availableRoles[0]?.id || "");
+  teamBusinessNameInput.value = teamEntry?.businessName || "";
+  teamPublicBookingInput.checked = teamEntry?.publicBookingEnabled !== false;
+  teamPublicBookingInput.disabled = state.editor.teamEntryType !== "admin";
+  teamEmailInput.disabled = isEditingManagedAdminEntry();
+  teamFormTitle.textContent = isEditingManagedAdminEntry()
+    ? `Editando ${teamEntry?.displayName || "usuario"}`
+    : "Nuevo acceso";
+  teamFormChip.textContent = state.editor.teamEntryType === "admin"
+    ? "Usuario activo"
+    : (state.editor.teamEntryType === "invite" ? "Invitacion pendiente" : "Invitacion");
+  teamSubmit.textContent = state.adminAccess.submitting
+    ? (isEditingManagedAdminEntry() ? "Guardando..." : "Creando acceso...")
+    : (isEditingManagedAdminEntry() ? "Guardar cambios" : "Crear usuario");
+  teamSubmit.disabled = state.adminAccess.submitting || availableRoles.length === 0;
+  teamReset.hidden = !isEditingManagedAdminEntry();
+  applyMessageToElement(getViewElement("team-message"), state.messages.team);
+}
+
+function populateTenantSettingsForm() {
+  const tenantNameInput = getViewElement("tenant-name");
+  const tenantBusinessNameInput = getViewElement("tenant-business-name");
+  const tenantCustomDomainInput = getViewElement("tenant-custom-domain");
+  const tenantTimezoneInput = getViewElement("tenant-timezone");
+  const tenantWhatsAppPhoneInput = getViewElement("tenant-whatsapp-phone");
+  const tenantWhatsAppMessageInput = getViewElement("tenant-whatsapp-message");
+  const tenantPublicEnabledInput = getViewElement("tenant-public-enabled");
+  const tenantAdminEnabledInput = getViewElement("tenant-admin-enabled");
+
+  if (!tenantNameInput || !tenantBusinessNameInput || !tenantCustomDomainInput || !tenantTimezoneInput || !tenantWhatsAppPhoneInput || !tenantWhatsAppMessageInput || !tenantPublicEnabledInput || !tenantAdminEnabledInput) {
+    return;
+  }
+
+  tenantNameInput.value = state.tenantData?.name || "";
+  tenantBusinessNameInput.value = state.tenantData?.businessName || "";
+  tenantCustomDomainInput.value = state.tenantData?.customDomain || "";
+  tenantTimezoneInput.value = state.tenantData?.timezone || "America/Argentina/Buenos_Aires";
+  tenantWhatsAppPhoneInput.value = state.tenantData?.whatsAppPhone || "";
+  tenantWhatsAppMessageInput.value = state.tenantData?.whatsAppMessage || "";
+  tenantPublicEnabledInput.checked = state.tenantData?.publicEnabled !== false;
+  tenantAdminEnabledInput.checked = state.tenantData?.adminEnabled !== false;
+  applyMessageToElement(getViewElement("tenant-settings-message"), state.messages.settings);
+}
+
+function populateTenantRoleForm() {
+  const tenantRoleLabelInput = getViewElement("tenant-role-label");
+  const tenantRoleSubmit = getViewElement("tenant-role-submit");
+  const tenantRoleReset = getViewElement("tenant-role-reset");
+  const editingRole = getAvailableManagedAdminRoles().find((roleOption) => roleOption.id === state.editor.tenantRoleId);
+
+  if (!tenantRoleLabelInput || !tenantRoleSubmit || !tenantRoleReset) {
+    return;
+  }
+
+  tenantRoleLabelInput.value = editingRole?.label || "";
+  tenantRoleSubmit.textContent = state.settingsUi.roleSubmitting
+    ? "Guardando..."
+    : (editingRole ? "Guardar cambios" : "Guardar rol");
+  tenantRoleReset.hidden = !editingRole;
+  applyMessageToElement(getViewElement("tenant-roles-message"), state.messages.roles);
+}
+
 function clearBusinessData() {
+  clearToastDismissTimer("auth");
+  clearToastDismissTimer("profile");
   state.services = [];
   state.appointments = [];
   state.clients = [];
@@ -2712,16 +4058,23 @@ function clearBusinessData() {
   state.stockUi = createEmptyInventoryUiState();
   state.productUi = createEmptyInventoryUiState();
   state.salonUi = createEmptySalonUiState();
+  state.appointmentUi = createEmptyAppointmentUiState();
   state.clientUi = createEmptyClientUiState();
   state.adminAccess = createEmptyAdminAccessState();
+  state.settingsUi = createEmptySettingsUiState();
+  state.messages.profile = createEmptyMessage();
   state.messages.salon = createEmptyMessage();
   state.messages.team = createEmptyMessage();
+  state.messages.settings = createEmptyMessage();
+  state.messages.roles = createEmptyMessage();
   syncClientDetailOverlayState();
   resetServiceEditor({ preserveMessage: true });
   resetClientEditor({ preserveMessage: true });
   resetStockEditor({ preserveMessage: true });
   resetProductEditor({ preserveMessage: true });
   resetSalonEditor({ preserveMessage: true });
+  resetTeamEditor({ preserveMessage: true });
+  resetTenantRoleEditor({ preserveMessage: true });
 }
 
 function clearSubscriptions() {
@@ -2791,12 +4144,44 @@ function resetSalonEditor({ preserveMessage = false } = {}) {
   }
 }
 
+function resetTeamEditor({ preserveMessage = false } = {}) {
+  state.editor.teamEntryId = "";
+  state.editor.teamEntryType = "";
+
+  if (!preserveMessage) {
+    clearScopedMessage("team");
+  }
+
+  if (state.activeView === "usuarios") {
+    populateTeamForm();
+    refreshCurrentViewData();
+  }
+}
+
+function resetTenantRoleEditor({ preserveMessage = false } = {}) {
+  state.editor.tenantRoleId = "";
+
+  if (!preserveMessage) {
+    clearScopedMessage("roles");
+  }
+
+  if (state.activeView === "configuraciones") {
+    populateTenantRoleForm();
+    refreshCurrentViewData();
+  }
+}
+
 function setAccessBlocked(message, tone = "warning") {
+  debugLog("access-blocked", {
+    message,
+    tone,
+    tenantId: state.tenantId,
+    uid: state.user?.uid || ""
+  });
   clearSubscriptions();
   clearBusinessData();
   state.profile = null;
-  state.messages.auth = { text: message, tone };
-  renderBannerState();
+  setScopedMessage("auth", message, tone);
   renderActiveView();
 }
 
@@ -2809,6 +4194,9 @@ async function handleSignIn() {
   state.authBusy = true;
   renderBannerState();
   setScopedMessage("auth", "Abriendo Google para iniciar sesion...", "");
+  debugLog("google-sign-in-start", {
+    tenantId: state.tenantId
+  });
 
   try {
     const provider = new GoogleAuthProvider();
@@ -2816,6 +4204,11 @@ async function handleSignIn() {
     auth.languageCode = "es";
     await signInWithPopup(auth, provider);
   } catch (error) {
+    debugLog("google-sign-in-error", {
+      tenantId: state.tenantId,
+      code: error?.code || "",
+      message: error?.message || ""
+    });
     setScopedMessage("auth", "No se pudo iniciar sesion. Reintenta en unos segundos.", "error");
   } finally {
     state.authBusy = false;
@@ -2832,8 +4225,17 @@ async function handleSignOut() {
   renderBannerState();
 
   try {
+    debugLog("sign-out-start", {
+      tenantId: state.tenantId,
+      uid: state.user?.uid || ""
+    });
     await signOut(auth);
   } catch (error) {
+    debugLog("sign-out-error", {
+      tenantId: state.tenantId,
+      code: error?.code || "",
+      message: error?.message || ""
+    });
     setScopedMessage("auth", "No se pudo cerrar sesion. Reintenta en unos segundos.", "error");
   } finally {
     state.authBusy = false;
@@ -2856,7 +4258,17 @@ async function claimManagedAdminAccess() {
   }
 
   try {
+    debugLog("claim-managed-admin-access-start", {
+      tenantId: state.tenantId,
+      uid: state.user.uid,
+      email: state.user.email || ""
+    });
     const response = await callAdminCallable("claimManagedAdminAccess");
+    debugLog("claim-managed-admin-access-result", {
+      tenantId: state.tenantId,
+      claimed: response.claimed === true,
+      alreadyActive: response.alreadyActive === true
+    });
     return response.claimed === true || response.alreadyActive === true;
   } catch (error) {
     console.error("[admin:team] claim access failed", error);
@@ -2896,6 +4308,11 @@ async function loadManagedAdminAccess(force = false) {
 
 async function loadAdminProfile(user) {
   try {
+    debugLog("load-admin-profile-start", {
+      tenantId: state.tenantId,
+      uid: user.uid,
+      email: user.email || ""
+    });
     let adminSnapshot = await getDoc(tenantDocRef("admins", user.uid));
 
     if (!adminSnapshot.exists()) {
@@ -2907,7 +4324,7 @@ async function loadAdminProfile(user) {
     }
 
     if (!adminSnapshot.exists()) {
-      setAccessBlocked("Tu cuenta de Google todavia no tiene permiso para entrar. Pedi que habiliten tu acceso.", "error");
+      setAccessBlocked("Tu cuenta todavia no tiene permiso para entrar. Pedi que habiliten tu acceso.", "error");
       return;
     }
 
@@ -2922,13 +4339,31 @@ async function loadAdminProfile(user) {
     }
 
     state.profile = profile;
+    debugLog("load-admin-profile-success", {
+      tenantId: state.tenantId,
+      uid: user.uid,
+      active: profile.active === true,
+      role: profile.role || profile.specialtyKey || "",
+      membershipRole: profile.membershipRole || ""
+    });
+    await refreshTenantContext();
     state.adminAccess = createEmptyAdminAccessState();
-    state.messages.auth = { text: "Listo, ya puedes administrar tu negocio.", tone: "success" };
+    setScopedMessage("auth", "Listo, ya puedes administrar tu negocio.", "success");
     applyTenantBranding();
-    renderBannerState();
+    renderNavigation();
     renderActiveView();
     startRealtimeSubscriptions(user.uid);
+
+    if (canManageAdminAccess()) {
+      loadManagedAdminAccess(true);
+    }
   } catch (error) {
+    debugLog("load-admin-profile-error", {
+      tenantId: state.tenantId,
+      uid: user.uid,
+      code: error?.code || "",
+      message: error?.message || ""
+    });
     setAccessBlocked("No se pudo cargar tu cuenta. Reintenta en unos segundos.", "error");
   }
 }
@@ -2940,6 +4375,10 @@ function startRealtimeSubscriptions(adminId) {
 
   clearSubscriptions();
   state.subscribedAdminId = adminId;
+  debugLog("start-realtime-subscriptions", {
+    tenantId: state.tenantId,
+    adminId
+  });
 
   const servicesQuery = query(
     tenantCollectionRef("servicios"),
@@ -2948,12 +4387,18 @@ function startRealtimeSubscriptions(adminId) {
     limit(30)
   );
 
-  const appointmentsQuery = query(
-    tenantCollectionRef("turnos"),
-    where("adminId", "==", adminId),
-    orderBy("requestedStartAt", "asc"),
-    limit(20)
-  );
+  const appointmentsQuery = canManageAdminAccess()
+    ? query(
+      tenantCollectionRef("turnos"),
+      orderBy("requestedStartAt", "asc"),
+      limit(80)
+    )
+    : query(
+      tenantCollectionRef("turnos"),
+      where("adminId", "==", adminId),
+      orderBy("requestedStartAt", "asc"),
+      limit(20)
+    );
 
   const clientsQuery = query(
     tenantCollectionRef("clientes"),
@@ -2993,13 +4438,18 @@ function startRealtimeSubscriptions(adminId) {
         const data = documentSnapshot.data();
         return {
           id: documentSnapshot.id,
+          adminId: data.adminId || "",
           serviceName: data.serviceNameSnapshot || data.serviceName || "Servicio",
+          serviceArea: data.serviceAreaSnapshot || data.serviceArea || "",
           clientName: data.clientSnapshot?.fullName || data.clientName || "Cliente",
+          clientPhone: data.clientSnapshot?.phone || data.clientPhone || "",
+          clientEmail: data.clientSnapshot?.email || data.clientEmail || "",
           requestedStartAt: data.requestedStartAt,
           estimatedDurationMinutes: Number(data.estimatedDurationMinutes || 0),
           status: data.status || "pending",
           source: data.source || "panel",
-          notes: data.notes || ""
+          notes: data.notes || "",
+          professionalName: data.adminDisplayName || data.professionalName || ""
         };
       });
       refreshCurrentViewData();
@@ -3053,7 +4503,7 @@ function startRealtimeSubscriptions(adminId) {
 
 function activateView(viewId, forceRender = false) {
   const declaredView = NAV_ITEMS.some((item) => item.id === viewId) ? viewId : "dashboard";
-  const nextView = (declaredView === "usuarios" || declaredView === "salon") && !canManageAdminAccess()
+  const nextView = ["usuarios", "salon", "configuraciones"].includes(declaredView) && !canManageAdminAccess()
     ? "dashboard"
     : declaredView;
 
@@ -3063,6 +4513,11 @@ function activateView(viewId, forceRender = false) {
 
   if (nextView !== "clientes" && state.clientUi.detailClientId) {
     closeClientDetail({ rerender: false });
+  }
+
+  if (nextView !== "turnos") {
+    state.appointmentUi.detailAppointmentId = "";
+    state.appointmentUi.detailFeedback = "";
   }
 
   state.activeView = nextView;
@@ -3084,7 +4539,28 @@ async function saveService(event) {
   const serviceDurationInput = getViewElement("service-duration");
   const serviceSortOrderInput = getViewElement("service-sort-order");
   const serviceDescriptionInput = getViewElement("service-description");
+  const serviceImageInput = getViewElement("service-image");
+  const serviceIsSpecialInput = getViewElement("service-is-special");
   const servicePublicVisibleInput = getViewElement("service-public-visible");
+  const serviceRef = state.editor.serviceId
+    ? tenantDocRef("servicios", state.editor.serviceId)
+    : doc(tenantCollectionRef("servicios"));
+
+  let specialSchedule = [];
+
+  if (serviceIsSpecialInput?.checked) {
+    try {
+      specialSchedule = collectServiceSpecialSchedule();
+    } catch (error) {
+      setScopedMessage("service", error.message || "Revisa las fechas del servicio especial.", "error");
+      return;
+    }
+
+    if (!specialSchedule.length) {
+      setScopedMessage("service", "Agrega al menos una fecha para el servicio especial.", "error");
+      return;
+    }
+  }
 
   const payload = {
     tenantId: getTenantId(),
@@ -3097,17 +4573,44 @@ async function saveService(event) {
     price: Number(servicePriceInput.value),
     currency: "ARS",
     durationMinutes: Number(serviceDurationInput.value),
+    isSpecial: serviceIsSpecialInput?.checked === true,
+    specialSchedule,
     publicVisible: servicePublicVisibleInput.checked,
     sortOrder: Number(serviceSortOrderInput.value || state.services.length + 1),
     updatedAt: serverTimestamp()
   };
 
   try {
+    const selectedImage = serviceImageInput?.files?.[0];
+
+    if (selectedImage) {
+      if (!storage) {
+        throw new Error("storage-not-ready");
+      }
+
+      if (!String(selectedImage.type || "").startsWith("image/")) {
+        setScopedMessage("service", "El archivo seleccionado no es una imagen valida.", "error");
+        return;
+      }
+
+      const webpFile = await convertImageFileToWebp(selectedImage);
+      const storagePath = `tenants/${getTenantId()}/servicios/${serviceRef.id}/cover.webp`;
+      const imageRef = ref(storage, storagePath);
+
+      await uploadBytes(imageRef, webpFile, {
+        contentType: "image/webp",
+        cacheControl: "public,max-age=3600"
+      });
+
+      payload.imageUrl = await getDownloadURL(imageRef);
+      payload.imageStoragePath = storagePath;
+    }
+
     if (state.editor.serviceId) {
-      await setDoc(tenantDocRef("servicios", state.editor.serviceId), payload, { merge: true });
+      await setDoc(serviceRef, payload, { merge: true });
       setScopedMessage("service", "Servicio actualizado.", "success");
     } else {
-      await addDoc(tenantCollectionRef("servicios"), {
+      await setDoc(serviceRef, {
         ...payload,
         createdAt: serverTimestamp()
       });
@@ -3116,7 +4619,15 @@ async function saveService(event) {
 
     resetServiceEditor({ preserveMessage: true });
   } catch (error) {
-    setScopedMessage("service", "No se pudo guardar el servicio. Revisa los datos e intenta de nuevo.", "error");
+    console.error("[admin:service] save failed", error);
+
+    if (`${error?.message || ""}`.includes("storage-not-ready")) {
+      setScopedMessage("service", "Storage no esta disponible todavia para subir imagenes.", "error");
+    } else if (serviceImageInput?.files?.[0]) {
+      setScopedMessage("service", "No se pudo subir la imagen del servicio. Reintenta con otra foto.", "error");
+    } else {
+      setScopedMessage("service", "No se pudo guardar el servicio. Revisa los datos e intenta de nuevo.", "error");
+    }
   }
 }
 
@@ -3716,11 +5227,290 @@ function shiftSalonCarousel(direction) {
   refreshCurrentViewData();
 }
 
-async function createManagedAdminAccess(event) {
+function findTenantRole(roleId = state.editor.tenantRoleId) {
+  return getAvailableManagedAdminRoles().find((roleOption) => roleOption.id === roleId) || null;
+}
+
+function editTenantRole(roleId) {
+  state.editor.tenantRoleId = roleId;
+  const roleEntry = findTenantRole(roleId);
+  setScopedMessage("roles", roleEntry ? `Editando ${roleEntry.label}.` : "Editando rol.", "warning");
+  populateTenantRoleForm();
+  getViewElement("tenant-role-label")?.focus();
+}
+
+async function saveTenantSettings(event) {
   event.preventDefault();
 
   if (!canManageAdminAccess()) {
-    setScopedMessage("team", "Solo Natalia puede crear accesos para otros usuarios.", "error");
+    setScopedMessage("settings", "Tu cuenta no tiene permiso para editar la configuracion del tenant.", "error");
+    return;
+  }
+
+  const nameInput = getViewElement("tenant-name");
+  const businessNameInput = getViewElement("tenant-business-name");
+  const customDomainInput = getViewElement("tenant-custom-domain");
+  const timezoneInput = getViewElement("tenant-timezone");
+  const whatsAppPhoneInput = getViewElement("tenant-whatsapp-phone");
+  const whatsAppMessageInput = getViewElement("tenant-whatsapp-message");
+  const publicEnabledInput = getViewElement("tenant-public-enabled");
+  const adminEnabledInput = getViewElement("tenant-admin-enabled");
+  const payload = {
+    name: nameInput?.value.trim() || "",
+    businessName: businessNameInput?.value.trim() || "",
+    customDomain: customDomainInput?.value.trim() || "",
+    timezone: timezoneInput?.value.trim() || "",
+    whatsAppPhone: whatsAppPhoneInput?.value.trim() || "",
+    whatsAppMessage: whatsAppMessageInput?.value.trim() || "",
+    publicEnabled: publicEnabledInput?.checked !== false,
+    adminEnabled: adminEnabledInput?.checked !== false
+  };
+
+  if (!payload.name || !payload.businessName || !payload.timezone) {
+    setScopedMessage("settings", "Completa nombre, nombre visible y zona horaria antes de guardar.", "error");
+    return;
+  }
+
+  state.settingsUi.saving = true;
+  setScopedMessage("settings", "Guardando configuracion del tenant...", "");
+  refreshCurrentViewData();
+
+  try {
+    const response = await callAdminCallable("updateTenantSettings", payload);
+
+    if (response.tenant && typeof response.tenant === "object") {
+      state.tenantData = response.tenant;
+      syncTenantRolesFromTenantData();
+      applyTenantBranding();
+    } else {
+      await refreshTenantContext();
+    }
+
+    renderNavigation();
+    renderBannerState();
+    renderActiveView();
+    setScopedMessage("settings", response.message || "Configuracion actualizada.", "success");
+  } catch (error) {
+    console.error("[admin:settings] save tenant failed", error);
+    setScopedMessage("settings", error?.message || "No se pudo guardar la configuracion del tenant.", "error");
+  } finally {
+    state.settingsUi.saving = false;
+    refreshCurrentViewData();
+  }
+}
+
+async function saveTenantRole(event) {
+  event.preventDefault();
+
+  if (!canManageAdminAccess()) {
+    setScopedMessage("roles", "Tu cuenta no tiene permiso para administrar roles.", "error");
+    return;
+  }
+
+  const labelInput = getViewElement("tenant-role-label");
+  const label = labelInput?.value.trim() || "";
+
+  if (!label) {
+    setScopedMessage("roles", "Escribe un nombre para el rol antes de guardarlo.", "error");
+    return;
+  }
+
+  state.settingsUi.roleSubmitting = true;
+  setScopedMessage("roles", state.editor.tenantRoleId ? "Guardando cambios del rol..." : "Agregando rol al tenant...", "");
+  refreshCurrentViewData();
+
+  try {
+    const response = await callAdminCallable("saveTenantRole", {
+      roleId: state.editor.tenantRoleId,
+      label
+    });
+
+    if (Array.isArray(response.roles)) {
+      state.tenantRoles = response.roles.map(normalizeTenantRoleEntry).filter(Boolean);
+      state.tenantData = {
+        ...(state.tenantData || {}),
+        roles: response.roles
+      };
+    } else {
+      await refreshTenantContext();
+    }
+
+    resetTenantRoleEditor({ preserveMessage: true });
+    renderActiveView();
+    setScopedMessage("roles", response.message || "Rol guardado.", "success");
+  } catch (error) {
+    console.error("[admin:settings] save role failed", error);
+    setScopedMessage("roles", error?.message || "No se pudo guardar el rol.", "error");
+  } finally {
+    state.settingsUi.roleSubmitting = false;
+    refreshCurrentViewData();
+  }
+}
+
+async function deleteTenantRole(roleId) {
+  if (!canManageAdminAccess()) {
+    setScopedMessage("roles", "Tu cuenta no tiene permiso para eliminar roles.", "error");
+    return;
+  }
+
+  const roleEntry = findTenantRole(roleId);
+
+  if (!roleEntry) {
+    return;
+  }
+
+  const confirmed = window.confirm(`Vas a eliminar el rol ${roleEntry.label}. Esta accion no se puede deshacer. Deseas continuar?`);
+
+  if (!confirmed) {
+    return;
+  }
+
+  state.settingsUi.roleDeletingId = roleId;
+  setScopedMessage("roles", `Eliminando ${roleEntry.label}...`, "warning");
+  refreshCurrentViewData();
+
+  try {
+    const response = await callAdminCallable("deleteTenantRole", { roleId });
+
+    if (Array.isArray(response.roles)) {
+      state.tenantRoles = response.roles.map(normalizeTenantRoleEntry).filter(Boolean);
+      state.tenantData = {
+        ...(state.tenantData || {}),
+        roles: response.roles
+      };
+    } else {
+      await refreshTenantContext();
+    }
+
+    if (state.editor.tenantRoleId === roleId) {
+      resetTenantRoleEditor({ preserveMessage: true });
+    }
+
+    renderActiveView();
+    setScopedMessage("roles", response.message || "Rol eliminado.", "success");
+  } catch (error) {
+    console.error("[admin:settings] delete role failed", error);
+    setScopedMessage("roles", error?.message || "No se pudo eliminar el rol.", "error");
+  } finally {
+    if (state.settingsUi.roleDeletingId === roleId) {
+      state.settingsUi.roleDeletingId = "";
+    }
+
+    refreshCurrentViewData();
+  }
+}
+
+function editManagedAdminEntry(entryId, entryType) {
+  state.editor.teamEntryId = entryId;
+  state.editor.teamEntryType = entryType;
+  const teamEntry = findManagedAdminEntry(entryId, entryType);
+  setScopedMessage("team", teamEntry ? `Editando ${teamEntry.displayName || teamEntry.email}.` : "Editando acceso.", "warning");
+  populateTeamForm();
+  getViewElement("team-display-name")?.focus();
+}
+
+async function toggleManagedAdminAccess(entryId) {
+  if (!canManageAdminAccess()) {
+    setScopedMessage("team", "Tu cuenta no tiene permiso para suspender accesos.", "error");
+    return;
+  }
+
+  const teamEntry = findManagedAdminEntry(entryId, "admin");
+
+  if (!teamEntry || !canManageTargetAdmin({ ...teamEntry, entryType: "admin" })) {
+    return;
+  }
+
+  const actionKey = `admin:${entryId}`;
+  state.adminAccess.actionId = actionKey;
+  setScopedMessage("team", teamEntry.active === false ? `Reactivando ${teamEntry.displayName || teamEntry.email}...` : `Suspendiendo ${teamEntry.displayName || teamEntry.email}...`, "warning");
+  refreshCurrentViewData();
+
+  try {
+    const response = await callAdminCallable("updateManagedAdminAccess", {
+      adminId: entryId,
+      displayName: teamEntry.displayName,
+      businessName: teamEntry.businessName,
+      role: teamEntry.role,
+      publicBookingEnabled: teamEntry.publicBookingEnabled !== false,
+      active: teamEntry.active === false
+    });
+
+    setScopedMessage("team", response.message || "Acceso actualizado.", "success");
+    state.adminAccess.loaded = false;
+    await loadManagedAdminAccess(true);
+  } catch (error) {
+    console.error("[admin:team] toggle access failed", error);
+    setScopedMessage("team", error?.message || "No se pudo actualizar el acceso del usuario.", "error");
+  } finally {
+    if (state.adminAccess.actionId === actionKey) {
+      state.adminAccess.actionId = "";
+    }
+
+    refreshCurrentViewData();
+  }
+}
+
+async function deleteManagedAdminAccessEntry(entryId, entryType) {
+  if (!canManageAdminAccess()) {
+    setScopedMessage("team", "Tu cuenta no tiene permiso para eliminar accesos.", "error");
+    return;
+  }
+
+  const teamEntry = findManagedAdminEntry(entryId, entryType);
+
+  if (!teamEntry) {
+    return;
+  }
+
+  if (entryType === "admin" && !canManageTargetAdmin({ ...teamEntry, entryType })) {
+    setScopedMessage("team", "La cuenta principal del tenant no se puede eliminar desde esta seccion.", "error");
+    return;
+  }
+
+  const label = teamEntry.displayName || teamEntry.email || "este acceso";
+  const confirmed = window.confirm(`Vas a eliminar ${label}. Esta accion no se puede deshacer. Deseas continuar?`);
+
+  if (!confirmed) {
+    return;
+  }
+
+  const actionKey = `${entryType}:${entryId}`;
+  state.adminAccess.actionId = actionKey;
+  setScopedMessage("team", `Eliminando ${label}...`, "warning");
+  refreshCurrentViewData();
+
+  try {
+    const response = await callAdminCallable("deleteManagedAdminAccess", (
+      entryType === "invite"
+        ? { inviteEmail: teamEntry.email }
+        : { adminId: entryId }
+    ));
+
+    if (state.editor.teamEntryId === entryId && state.editor.teamEntryType === entryType) {
+      resetTeamEditor({ preserveMessage: true });
+    }
+
+    setScopedMessage("team", response.message || "Acceso eliminado.", "success");
+    state.adminAccess.loaded = false;
+    await loadManagedAdminAccess(true);
+  } catch (error) {
+    console.error("[admin:team] delete access failed", error);
+    setScopedMessage("team", error?.message || "No se pudo eliminar el acceso.", "error");
+  } finally {
+    if (state.adminAccess.actionId === actionKey) {
+      state.adminAccess.actionId = "";
+    }
+
+    refreshCurrentViewData();
+  }
+}
+
+async function saveManagedAdminAccess(event) {
+  event.preventDefault();
+
+  if (!canManageAdminAccess()) {
+    setScopedMessage("team", "Tu cuenta no tiene permiso para administrar accesos.", "error");
     return;
   }
 
@@ -3728,33 +5518,56 @@ async function createManagedAdminAccess(event) {
   const emailInput = getViewElement("team-email");
   const roleInput = getViewElement("team-role");
   const businessNameInput = getViewElement("team-business-name");
+  const publicBookingInput = getViewElement("team-public-booking-enabled");
   const displayName = displayNameInput?.value.trim() || "";
   const email = emailInput?.value.trim().toLowerCase() || "";
   const role = roleInput?.value || "";
+  const businessName = businessNameInput?.value.trim() || "";
+  const isEditing = isEditingManagedAdminEntry();
+  const currentEntry = findManagedAdminEntry();
 
-  if (!displayName || !email || !role) {
+  if (!displayName || (!isEditing && !email) || !role) {
     setScopedMessage("team", "Completa nombre, email y rol antes de crear el acceso.", "error");
     return;
   }
 
   state.adminAccess.submitting = true;
-  setScopedMessage("team", "Creando acceso para el equipo...", "");
+  setScopedMessage("team", isEditing ? "Guardando cambios del usuario..." : "Creando acceso para el equipo...", "");
   refreshCurrentViewData();
 
   try {
-    const response = await callAdminCallable("createManagedAdminAccess", {
-      displayName,
-      email,
-      role,
-      businessName: businessNameInput?.value.trim() || ""
-    });
+    const response = isEditing
+      ? await callAdminCallable("updateManagedAdminAccess", (
+        state.editor.teamEntryType === "invite"
+          ? {
+            inviteEmail: currentEntry?.email || email,
+            displayName,
+            businessName,
+            role
+          }
+          : {
+            adminId: state.editor.teamEntryId,
+            displayName,
+            businessName,
+            role,
+            active: currentEntry?.active !== false,
+            publicBookingEnabled: publicBookingInput?.checked !== false
+          }
+      ))
+      : await callAdminCallable("createManagedAdminAccess", {
+        displayName,
+        email,
+        role,
+        businessName
+      });
 
-    setScopedMessage("team", response.message || "Acceso creado. La persona ya puede reclamarlo con Google.", "success");
+    setScopedMessage("team", response.message || (isEditing ? "Acceso actualizado." : "Acceso creado. La persona ya puede reclamarlo iniciando sesion con ese email."), "success");
     event.target.reset();
+    resetTeamEditor({ preserveMessage: true });
     state.adminAccess.loaded = false;
     await loadManagedAdminAccess(true);
   } catch (error) {
-    console.error("[admin:team] create access failed", error);
+    console.error("[admin:team] save access failed", error);
     const errorCode = String(error?.code || "").toLowerCase();
 
     if (errorCode.includes("permission-denied")) {
@@ -3771,15 +5584,69 @@ async function createManagedAdminAccess(event) {
 }
 
 async function updateAppointmentStatus(appointmentId, status) {
+  const previousAppointments = [...state.appointments];
+  state.appointments = state.appointments.map((appointment) => (
+    appointment.id === appointmentId
+      ? { ...appointment, status }
+      : appointment
+  ));
+  state.appointmentUi.detailFeedback = `Actualizando turno a ${translateAppointmentStatus(status).toLowerCase()}...`;
+  refreshCurrentViewData();
+
   try {
     await updateDoc(tenantDocRef("turnos", appointmentId), {
       status,
       updatedAt: serverTimestamp()
     });
     setScopedMessage("auth", `Turno actualizado a ${translateAppointmentStatus(status).toLowerCase()}.`, "success");
+    state.appointmentUi.detailFeedback = `Turno marcado como ${translateAppointmentStatus(status).toLowerCase()}.`;
+    refreshCurrentViewData();
   } catch (error) {
+    state.appointments = previousAppointments;
+    state.appointmentUi.detailFeedback = "No se pudo actualizar el turno. Reintenta en unos segundos.";
+    refreshCurrentViewData();
     setScopedMessage("auth", "No se pudo actualizar el turno. Reintenta en unos segundos.", "error");
   }
+}
+
+function openAppointmentDetail(appointmentId) {
+  const appointment = state.appointments.find((item) => item.id === appointmentId);
+
+  if (!appointment) {
+    return;
+  }
+
+  state.appointmentUi.detailAppointmentId = appointmentId;
+  state.appointmentUi.detailFeedback = "";
+  refreshCurrentViewData();
+}
+
+function closeAppointmentDetail() {
+  if (!state.appointmentUi.detailAppointmentId) {
+    return;
+  }
+
+  state.appointmentUi.detailAppointmentId = "";
+  state.appointmentUi.detailFeedback = "";
+  refreshCurrentViewData();
+}
+
+function filterAppointmentsByProfessional(professionalId = "all") {
+  state.appointmentUi.selectedProfessionalId = professionalId || "all";
+  refreshCurrentViewData();
+}
+
+function requestAppointmentReschedule(appointmentId) {
+  const appointment = state.appointments.find((item) => item.id === appointmentId);
+
+  if (!appointment) {
+    return;
+  }
+
+  state.appointmentUi.detailAppointmentId = appointmentId;
+  state.appointmentUi.detailFeedback = "La reprogramacion queda como siguiente paso funcional. Ya dejamos listo el detalle para conectarlo con un selector de fecha y hora.";
+  refreshCurrentViewData();
+  setScopedMessage("auth", "La accion de reprogramar quedo preparada en esta vista, pero todavia no guarda una nueva fecha.", "warning");
 }
 
 function editService(serviceId) {
@@ -3907,13 +5774,44 @@ async function handleProfileUpload(event) {
   setScopedMessage("profile", "Preparando y guardando tu foto...", "");
 
   try {
+    const tenantId = getTenantId();
+    debugLog("profile-upload-start", {
+      tenantId,
+      userUid: state.user?.uid || "",
+      authUid: auth.currentUser?.uid || "",
+      email: state.user?.email || "",
+      profileActive: Boolean(state.profile?.active),
+      membershipRole: state.profile?.membershipRole || "",
+      role: state.profile?.role || "",
+      fileName: file.name || "",
+      fileType: file.type || "",
+      fileSize: Number(file.size || 0)
+    });
+
     const webpFile = await convertImageFileToWebp(file);
-    const storagePath = `tenants/${getTenantId()}/admins/${state.user.uid}/profile/avatar.webp`;
+    const storagePath = `tenants/${tenantId}/admins/${state.user.uid}/profile/avatar.webp`;
     const imageRef = ref(storage, storagePath);
+
+    debugLog("profile-upload-ready", {
+      tenantId,
+      userUid: state.user?.uid || "",
+      authUid: auth.currentUser?.uid || "",
+      storageBucket: storage?.app?.options?.storageBucket || "",
+      storagePath,
+      sourceFileSize: Number(file.size || 0),
+      webpFileSize: Number(webpFile.size || 0),
+      webpFileType: webpFile.type || ""
+    });
 
     await uploadBytes(imageRef, webpFile, {
       contentType: "image/webp",
       cacheControl: "public,max-age=3600"
+    });
+
+    debugLog("profile-upload-storage-success", {
+      tenantId,
+      userUid: state.user?.uid || "",
+      storagePath
     });
 
     const downloadUrl = await getDownloadURL(imageRef);
@@ -3930,8 +5828,29 @@ async function handleProfileUpload(event) {
       photoStoragePath: storagePath
     };
 
+    debugLog("profile-upload-finished", {
+      tenantId,
+      userUid: state.user?.uid || "",
+      storagePath,
+      downloadUrl
+    });
+
     setScopedMessage("profile", "Foto actualizada.", "success");
   } catch (error) {
+    debugLog("profile-upload-error", {
+      tenantId: getTenantId(),
+      userUid: state.user?.uid || "",
+      authUid: auth.currentUser?.uid || "",
+      email: state.user?.email || "",
+      storageBucket: storage?.app?.options?.storageBucket || "",
+      errorCode: error?.code || "",
+      errorMessage: error?.message || "",
+      errorName: error?.name || "",
+      errorServerResponse: error?.serverResponse || "",
+      errorCustomData: error?.customData || null,
+      errorStack: error?.stack || ""
+    });
+    console.error("[admin-panel] profile-upload-error-raw", error);
     setScopedMessage("profile", explainProfileUploadError(error), "error");
   } finally {
     state.uploadingProfile = false;
@@ -3962,18 +5881,59 @@ function handleViewClick(event) {
     return;
   }
 
+  if (event.target.classList.contains("appointment-detail-overlay")) {
+    closeAppointmentDetail();
+    return;
+  }
+
   const actionButton = event.target.closest("[data-action]");
 
   if (actionButton) {
     const { action, id, status } = actionButton.dataset;
+
+    if (action === "appointment-open" && id) {
+      openAppointmentDetail(id);
+      return;
+    }
+
+    if (action === "appointment-close-detail") {
+      closeAppointmentDetail();
+      return;
+    }
+
+    if (action === "appointment-filter") {
+      filterAppointmentsByProfessional(id || "all");
+      return;
+    }
 
     if (action === "appointment-status" && id && status) {
       updateAppointmentStatus(id, status);
       return;
     }
 
+    if (action === "appointment-reschedule" && id) {
+      requestAppointmentReschedule(id);
+      return;
+    }
+
     if (action === "edit-service" && id) {
       editService(id);
+      return;
+    }
+
+    if (action === "add-service-special-window") {
+      addServiceSpecialWindowRow();
+      return;
+    }
+
+    if (action === "remove-service-special-window") {
+      const row = actionButton.closest(".service-special-window");
+      row?.remove();
+
+      if (!document.querySelector(".service-special-window")) {
+        renderServiceSpecialScheduleEditor([]);
+      }
+
       return;
     }
 
@@ -4046,6 +6006,31 @@ function handleViewClick(event) {
       shiftSalonCarousel(1);
       return;
     }
+
+    if (action === "edit-team-entry" && id) {
+      editManagedAdminEntry(id, actionButton.dataset.entryType || "admin");
+      return;
+    }
+
+    if (action === "toggle-team-access" && id) {
+      toggleManagedAdminAccess(id);
+      return;
+    }
+
+    if (action === "delete-team-access" && id) {
+      deleteManagedAdminAccessEntry(id, actionButton.dataset.entryType || "admin");
+      return;
+    }
+
+    if (action === "edit-tenant-role" && id) {
+      editTenantRole(id);
+      return;
+    }
+
+    if (action === "delete-tenant-role" && id) {
+      deleteTenantRole(id);
+      return;
+    }
   }
 
   if (event.target.closest("#service-reset")) {
@@ -4070,6 +6055,16 @@ function handleViewClick(event) {
 
   if (event.target.closest("#salon-reset")) {
     resetSalonEditor();
+    return;
+  }
+
+  if (event.target.closest("#team-reset")) {
+    resetTeamEditor();
+    return;
+  }
+
+  if (event.target.closest("#tenant-role-reset")) {
+    resetTenantRoleEditor();
   }
 }
 
@@ -4107,11 +6102,26 @@ function handleViewSubmit(event) {
   }
 
   if (event.target.id === "team-form") {
-    createManagedAdminAccess(event);
+    saveManagedAdminAccess(event);
+    return;
+  }
+
+  if (event.target.id === "tenant-settings-form") {
+    saveTenantSettings(event);
+    return;
+  }
+
+  if (event.target.id === "tenant-role-form") {
+    saveTenantRole(event);
   }
 }
 
 function handleViewInput(event) {
+  if (event.target.id === "service-is-special") {
+    syncServiceSpecialFieldsVisibility();
+    return;
+  }
+
   if (event.target.id === "client-search-input") {
     state.clientUi.searchQuery = event.target.value || "";
     refreshCurrentViewData();
@@ -4133,10 +6143,29 @@ function handleViewInput(event) {
 function handleGlobalKeydown(event) {
   if (event.key === "Escape" && state.clientUi.detailClientId) {
     closeClientDetail();
+    return;
+  }
+
+  if (event.key === "Escape" && state.appointmentUi.detailAppointmentId) {
+    closeAppointmentDetail();
   }
 }
 
 function attachEvents() {
+  if (!panelDomReady) {
+    debugLog("panel-dom-missing", {
+      pathname: window.location.pathname,
+      missing: {
+        sessionAuthButton: !sessionAuthButton,
+        profileUploadTrigger: !profileUploadTrigger,
+        profileUploadInput: !profileUploadInput,
+        sectionNav: !sectionNav,
+        viewRoot: !viewRoot
+      }
+    });
+    return;
+  }
+
   sessionAuthButton.addEventListener("click", handleSessionAuthAction);
   profileUploadTrigger.addEventListener("click", () => profileUploadInput.click());
   profileUploadInput.addEventListener("change", handleProfileUpload);
@@ -4150,6 +6179,15 @@ function attachEvents() {
 }
 
 async function bootstrapAuth() {
+  if (!panelDomReady) {
+    return;
+  }
+
+  debugLog("bootstrap-auth-start", {
+    firebaseReady,
+    pathname: window.location.pathname,
+    search: window.location.search
+  });
   const tenantReady = await loadTenantContext();
 
   renderNavigation();
@@ -4161,11 +6199,7 @@ async function bootstrapAuth() {
   }
 
   if (!firebaseReady || !auth || !db) {
-    state.messages.auth = {
-      text: "El panel todavia no esta listo para iniciar sesion. Avisale al equipo de Rockeala.",
-      tone: "warning"
-    };
-    renderBannerState();
+    setScopedMessage("auth", "El panel todavia no esta listo para iniciar sesion. Avisale al equipo de Rockeala.", "warning");
     renderActiveView();
     return;
   }
@@ -4173,6 +6207,11 @@ async function bootstrapAuth() {
   await setPersistence(auth, browserLocalPersistence);
 
   onAuthStateChanged(auth, async (user) => {
+    debugLog("auth-state-changed", {
+      tenantId: state.tenantId,
+      uid: user?.uid || "",
+      email: user?.email || ""
+    });
     clearSubscriptions();
     state.user = user;
     state.authResolved = true;
@@ -4180,14 +6219,12 @@ async function bootstrapAuth() {
     if (!user) {
       state.profile = null;
       clearBusinessData();
-      state.messages.auth = createEmptyMessage();
-      renderBannerState();
+      clearScopedMessage("auth");
       renderActiveView();
       return;
     }
 
-    state.messages.auth = createEmptyMessage();
-    renderBannerState();
+    clearScopedMessage("auth");
     renderActiveView();
     await loadAdminProfile(user);
   });

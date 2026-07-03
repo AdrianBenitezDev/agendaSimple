@@ -3,82 +3,101 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rockeala Admin</title>
-  <link rel="icon" type="image/webp" href="/rockeala_icon.webp">
+  <title>AgendaSimple Admin</title>
+  <link rel="icon" type="image/svg+xml" href="/app-icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
-  <header class="top-banner" id="top-banner">
-   
-      <section class="session-panel">
-      
+<body class="admin-marketing">
+  <main class="marketing-shell">
+    <section class="marketing-hero">
+      <p class="eyebrow">AgendaSimple</p>
+      <h1>Gestioná los turnos de tu negocio desde un solo lugar</h1>
+      <p class="marketing-lead">
+        Ingresá al panel de AgendaSimple para administrar turnos, servicios, precios, empleados y solicitudes de tus clientes.
+      </p>
+      <div class="marketing-pills">
+        <span>Panel administrador</span>
+        <span>Agenda pública</span>
+        <span>Reservas online</span>
+      </div>
+    </section>
 
-        <div class="session-brand" aria-label="Identidad del panel">
-          <strong class="session-brand__title">Rockeala Admin</strong>
-          <span class="session-brand__subtitle">Panel del negocio</span>
+    <section class="marketing-benefits" aria-label="Beneficios de AgendaSimple">
+      <article class="marketing-benefit-card">
+        <p class="eyebrow">Turnos online</p>
+        <h2>Tus clientes pueden solicitar turnos desde una agenda pública.</h2>
+      </article>
+      <article class="marketing-benefit-card">
+        <p class="eyebrow">Panel administrador</p>
+        <h2>Gestioná servicios, precios, horarios, empleados y reservas.</h2>
+      </article>
+      <article class="marketing-benefit-card">
+        <p class="eyebrow">Agenda pública para tus clientes</p>
+        <h2>Mostrá tus servicios, precios y disponibilidad desde un enlace fácil de compartir.</h2>
+      </article>
+    </section>
+
+    <section class="marketing-card">
+      <header class="marketing-card__header">
+        <div>
+          <p class="eyebrow">Ingreso</p>
+          <h2>Entrá al panel administrador</h2>
+          <p class="marketing-copy">
+            Ingresá con tu cuenta para administrar tu negocio. Si todavía no tenés una agenda creada, podés registrarte en minutos.
+          </p>
+        </div>
+        <div class="session-pill" id="session-pill">Sin sesión</div>
+      </header>
+
+      <form class="marketing-form" id="email-login-form">
+        <div class="marketing-grid marketing-grid--single">
+          <label>
+            <span>Email</span>
+            <input id="login-email" name="email" type="email" required placeholder="Ej. hola@email.com">
+          </label>
+          <label>
+            <span>Contraseña</span>
+            <input id="login-password" name="password" type="password" required placeholder="Mínimo 6 caracteres">
+          </label>
         </div>
 
-        <aside class="banner-aside" aria-label="Secciones del panel">
-          <div class="nav-strip" id="section-nav"></div>
-        </aside>
+        <div class="marketing-actions">
+          <button class="button button-primary" id="email-login-button" type="submit">Entrar al panel</button>
+          <button class="button button-secondary" id="google-sign-in-button" type="button">Ingresar con Google</button>
+          <a class="button button-secondary" href="/registro">Crear mi agenda</a>
+        </div>
 
-        <div class="profile-cluster session-status">
-          <button
-            class="profile-avatar-shell"
-            id="profile-upload-trigger"
-            type="button"
-            aria-label="Cambiar foto de perfil"
-            title="Cambiar foto de perfil"
-          >
-            <img class="profile-avatar" id="profile-image" src="" alt="Foto de perfil">
-          </button>
-          <input class="visually-hidden" id="profile-upload-input" type="file" accept="image/*">
+        <p class="form-message" id="form-message" role="status" aria-live="polite"></p>
+      </form>
 
-          <div class="session-copy">
-            <div class="session-headline">
-             
-              <span
-                class="session-helper"
-                id="session-helper"
-                aria-label="Estado del panel"
-                data-tooltip="Preparando panel"
-                tabindex="0"
-              >i</span>
-            </div>
+      <section class="business-access" id="business-access" hidden aria-live="polite">
+        <div class="business-access__header">
+          <div>
+            <p class="eyebrow" id="business-access-eyebrow">Tu cuenta</p>
+            <h3 id="business-access-title">Estamos preparando tu ingreso</h3>
+            <p class="marketing-copy" id="business-access-copy"></p>
           </div>
         </div>
-
-        <div class="session-actions">
-          <button class="button button-primary" id="session-auth-button" type="button">Entrar con Google</button>
-        </div>
-
-      
+        <div class="business-access__list" id="business-access-list"></div>
       </section>
-    
-  </header>
 
-  <div class="toast-stack" aria-live="polite" aria-atomic="true">
-    <p class="status-message" id="auth-message"></p>
-    <p class="status-message" id="profile-message"></p>
-  </div>
-
-  <main class="content-shell">
-
-    <div class="private-shell" id="private-shell">
-      <div id="view-root"></div>
-    </div>
+      <div class="marketing-links">
+        <a class="marketing-link" id="open-panel-link" href="/panel">Ir al panel administrador</a>
+        <a class="marketing-link" href="https://agendasimple-public.web.app/pruebaCliente" target="_blank" rel="noreferrer">Ver agenda pública de ejemplo</a>
+      </div>
+    </section>
   </main>
 
-  <footer class="admin-footer">
+  <footer class="admin-footer admin-footer--marketing">
     <div class="admin-footer__inner">
-      <p class="admin-footer__copy">Rockeala Admin</p>
-      <a class="admin-footer__link" target="_blank" href="https://rockeala.com.ar/" rel="noreferrer">Ir a rockeala.com.ar</a>
+      <p class="admin-footer__copy">AgendaSimple</p>
+      <a class="admin-footer__link" target="_blank" href="https://agendasimple-public.web.app/pruebaCliente" rel="noreferrer">Ver agenda pública de ejemplo</a>
     </div>
   </footer>
 
-  <script type="module" src="/app.js"></script>
+  <script type="module" src="/landing.js"></script>
 </body>
 </html>

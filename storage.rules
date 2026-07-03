@@ -5,37 +5,40 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    function tenantDocExists(tenantId) {
-      return firestore.exists(/databases/(default)/documents/tenants/$(tenantId));
-    }
-
-    function tenantDocData(tenantId) {
+    function tenantDoc(tenantId) {
       return firestore.get(/databases/(default)/documents/tenants/$(tenantId)).data;
     }
 
-    function tenantAdminDocExists(tenantId) {
+    function tenantAdminDoc(tenantId) {
       return signedIn()
-        && firestore.exists(/databases/(default)/documents/tenants/$(tenantId)/admins/$(request.auth.uid));
-    }
-
-    function tenantAdminDocData(tenantId) {
-      return firestore.get(/databases/(default)/documents/tenants/$(tenantId)/admins/$(request.auth.uid)).data;
+        ? firestore.get(/databases/(default)/documents/tenants/$(tenantId)/admins/$(request.auth.uid)).data
+        : null;
     }
 
     function activeTenantAdmin(tenantId) {
-      return tenantDocExists(tenantId)
-        && tenantDocData(tenantId).active == true
-        && tenantDocData(tenantId).adminEnabled == true
-        && tenantAdminDocExists(tenantId)
-        && tenantAdminDocData(tenantId).active == true;
+      let tenant = tenantDoc(tenantId);
+      let admin = tenantAdminDoc(tenantId);
+
+      return tenant != null
+        && admin != null
+        && tenant.active == true
+        && tenant.adminEnabled == true
+        && admin.active == true;
     }
 
     function tenantAdminManager(tenantId) {
-      return activeTenantAdmin(tenantId)
+      let tenant = tenantDoc(tenantId);
+      let admin = tenantAdminDoc(tenantId);
+
+      return tenant != null
+        && admin != null
+        && tenant.active == true
+        && tenant.adminEnabled == true
+        && admin.active == true
         && (
-          tenantAdminDocData(tenantId).canManageAdminAccess == true
-          || tenantAdminDocData(tenantId).membershipRole == "owner"
-          || tenantAdminDocData(tenantId).membershipRole == "admin"
+          admin.canManageAdminAccess == true
+          || admin.membershipRole == "owner"
+          || admin.membershipRole == "admin"
         );
     }
 
@@ -50,6 +53,11 @@ service firebase.storage {
     }
 
     match /tenants/{tenantId}/productos/{productId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if activeTenantAdmin(tenantId);
+    }
+
+    match /tenants/{tenantId}/servicios/{serviceId}/{allPaths=**} {
       allow read: if true;
       allow write: if activeTenantAdmin(tenantId);
     }

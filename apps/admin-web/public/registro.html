@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro | AgendaSimple Admin</title>
+  <link rel="icon" type="image/svg+xml" href="/app-icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/registro.css">
+</head>
+<body class="register-page">
+  <main class="register-shell">
+    <section class="register-hero">
+      <div class="register-hero__top">
+        <p class="eyebrow">AgendaSimple</p>
+        <a class="button button-secondary" href="/">Ya tengo cuenta</a>
+      </div>
+      <h1>Creá la cuenta de tu negocio en AgendaSimple</h1>
+      <p class="lead">
+        Configurá tu agenda online, elegí un plan y empezá a recibir reservas desde tu agenda pública.
+      </p>
+      <div class="hero-points">
+        <span>Registro con Google o email</span>
+        <span>Elegí el plan ideal para tu negocio</span>
+        <span>Tu agenda queda lista al instante</span>
+      </div>
+      <div class="register-note">
+        <strong>Importante:</strong>
+        <span>Todo el proceso de alta se hace desde el panel administrador para que tu cuenta quede lista en un solo lugar.</span>
+      </div>
+    </section>
+
+    <section class="steps-strip" aria-label="Pasos para crear tu agenda">
+      <article class="step-card">
+        <span class="step-index">Paso 1</span>
+        <h2>Creá tu cuenta</h2>
+        <p>Podés hacerlo con Google o con email y contraseña.</p>
+      </article>
+      <article class="step-card">
+        <span class="step-index">Paso 2</span>
+        <h2>Cargá los datos de tu negocio</h2>
+        <p>Completá el nombre del negocio, tu nombre y el enlace público.</p>
+      </article>
+      <article class="step-card">
+        <span class="step-index">Paso 3</span>
+        <h2>Elegí un plan</h2>
+        <p>Seleccioná la opción que mejor se adapte a tu forma de trabajar.</p>
+      </article>
+      <article class="step-card">
+        <span class="step-index">Paso 4</span>
+        <h2>Tu agenda queda lista</h2>
+        <p>Al finalizar vas a poder entrar al panel y compartir tu enlace.</p>
+      </article>
+    </section>
+
+    <section class="register-card">
+      <header class="register-card__header">
+        <div>
+          <p class="eyebrow">Comenzá ahora</p>
+          <h2>Creá la cuenta principal</h2>
+          <p class="section-copy">Esta cuenta será la administradora principal de tu negocio.</p>
+        </div>
+        <div class="session-pill" id="session-pill">Sin sesión</div>
+      </header>
+
+      <section class="auth-section">
+        <div class="auth-section__copy">
+          <h3>Elegí cómo querés registrarte</h3>
+          <p>Podés continuar con Google o crear una cuenta nueva con email y contraseña.</p>
+        </div>
+        <div class="auth-grid">
+          <label>
+            <span>Email</span>
+            <input id="auth-email" type="email" placeholder="Ej. hola@email.com">
+          </label>
+          <label>
+            <span>Contraseña</span>
+            <input id="auth-password" type="password" placeholder="Mínimo 6 caracteres">
+          </label>
+        </div>
+        <div class="auth-actions">
+          <button id="create-account-button" class="button button-secondary" type="button">Crear cuenta con email</button>
+          <button id="sign-in-button" class="button button-primary" type="button">Continuar con Google</button>
+        </div>
+      </section>
+
+      <form id="register-form" class="register-form">
+        <div class="form-grid">
+          <label>
+            <span>Nombre del negocio</span>
+            <input id="business-name" name="businessName" type="text" required placeholder="Ej. Estudio Sofía">
+          </label>
+
+          <label>
+            <span>Tu nombre</span>
+            <input id="display-name" name="displayName" type="text" required placeholder="Ej. Sofía Pérez">
+          </label>
+
+          <label class="field-wide">
+            <span>URL de tu agenda</span>
+            <input id="tenant-id" name="tenantId" type="text" required placeholder="Ej. peluqueria-natalia">
+            <small class="input-help">Tu enlace público será: <strong>agendasimple.com.ar/<span id="url-preview">mi-negocio</span></strong></small>
+            <small class="input-help">Usá letras minúsculas, números o guiones. Por ejemplo: peluqueria-natalia</small>
+          </label>
+        </div>
+
+        <section class="plans-section">
+          <div class="plans-section__header">
+            <div>
+              <p class="eyebrow">Planes</p>
+              <h3>Elegí el plan ideal para tu negocio</h3>
+              <p class="section-copy">Seleccioná la opción que mejor acompañe el crecimiento de tu agenda.</p>
+            </div>
+            <a class="button button-secondary" href="/">Volver al ingreso</a>
+          </div>
+          <div id="plans-grid" class="plans-grid">
+            <article class="empty-state">Cargando planes...</article>
+          </div>
+        </section>
+
+        <section class="support-card" aria-label="Ayuda y soporte">
+          <div class="support-card__copy">
+            <p class="eyebrow">¿Tenés dudas?</p>
+            <h3>Te ayudamos a configurar tu negocio</h3>
+            <p>Podés escribirnos por WhatsApp y te ayudamos a configurar tu negocio.</p>
+          </div>
+          <a
+            id="support-whatsapp-link"
+            class="button button-secondary button-whatsapp"
+            href="#"
+            target="_blank"
+            rel="noreferrer noopener"
+          >Consultar por WhatsApp</a>
+        </section>
+
+        <div class="actions">
+          <button id="submit-button" class="button button-primary button-submit" type="submit" disabled>Crear mi agenda</button>
+          <p id="form-message" class="form-message" role="status" aria-live="polite"></p>
+        </div>
+      </form>
+
+      <section id="success-card" class="success-card" hidden>
+        <p class="eyebrow">Agenda creada</p>
+        <h3>¡Listo! Tu agenda ya está creada</h3>
+        <p class="success-copy-static">Ahora podés abrir tu agenda pública, entrar al panel administrador o compartir el enlace con tus clientes.</p>
+        <p id="success-copy"></p>
+        <div class="success-links">
+          <a id="public-link" class="button button-primary" href="#" target="_blank" rel="noreferrer noopener">Ver mi agenda pública</a>
+          <a id="admin-link" class="button button-secondary" href="#" rel="noreferrer noopener">Ir al panel administrador</a>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="register-footer">
+    <div class="register-footer__inner">
+      <p>AgendaSimple</p>
+      <a href="https://agendasimple-public.web.app/rockeala" target="_blank" rel="noreferrer">Ver ejemplo de agenda pública</a>
+    </div>
+  </footer>
+
+  <script type="module" src="/registro.js"></script>
+</body>
+</html>

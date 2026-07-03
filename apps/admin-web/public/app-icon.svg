@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">AgendaSimple icono</title>
+  <desc id="desc">Calendario con tilde de confirmacion</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1f6f78"/>
+      <stop offset="100%" stop-color="#184e77"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)"/>
+  <rect x="12" y="16" width="40" height="34" rx="8" fill="#f8fbff"/>
+  <rect x="12" y="16" width="40" height="10" rx="8" fill="#d8eef3"/>
+  <rect x="19" y="10" width="4" height="12" rx="2" fill="#f8fbff"/>
+  <rect x="41" y="10" width="4" height="12" rx="2" fill="#f8fbff"/>
+  <path d="M23 35.5l5.2 5.2L41 28" fill="none" stroke="#20a779" stroke-linecap="round" stroke-linejoin="round" stroke-width="4.5"/>
+</svg>

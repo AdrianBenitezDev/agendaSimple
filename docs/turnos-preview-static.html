@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preview Estatica - Turnos Admin Web</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --white-rgb: 255, 255, 255;
+      --ink-rgb: 18, 18, 18;
+      --accent-rgb: 173, 24, 36;
+      --warning-rgb: 145, 23, 31;
+      --danger-rgb: 216, 38, 54;
+      --success-rgb: 111, 15, 25;
+      --bg: #f6f1f2;
+      --ink: #121212;
+      --muted: #5d5054;
+      --line: rgba(var(--ink-rgb), 0.12);
+      --panel: rgba(var(--white-rgb), 0.88);
+      --panel-strong: rgba(var(--white-rgb), 0.95);
+      --accent: #ad1824;
+      --accent-strong: #6f0f19;
+      --warning: #91171f;
+      --danger: #d82636;
+      --success: #6f0f19;
+      --shadow: 0 26px 80px rgba(var(--ink-rgb), 0.14);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Source Sans 3", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(var(--accent-rgb), 0.16), transparent 33%),
+        linear-gradient(180deg, #ffffff 0%, #efe8ea 100%);
+    }
+
+    .preview-shell {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 2rem 1rem 3rem;
+      display: grid;
+      gap: 1rem;
+    }
+
+    .preview-note,
+    .surface-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .preview-note {
+      padding: 1rem 1.2rem;
+    }
+
+    .preview-note strong,
+    .surface-panel h2,
+    .day-column__name,
+    .booking-card__client,
+    .booking-modal__time,
+    .booking-modal__client {
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    .preview-note p,
+    .weekly-preview__intro p:last-child,
+    .booking-modal__service,
+    .booking-modal__meta,
+    .booking-modal__notes {
+      color: var(--muted);
+    }
+
+    .eyebrow {
+      margin: 0 0 0.45rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--accent-strong);
+    }
+
+    .view-hero {
+      padding: 0.95rem 1.25rem;
+      border-radius: 28px;
+      border: 1px solid var(--line);
+      background: linear-gradient(135deg, rgba(var(--white-rgb), 0.9), rgba(var(--accent-rgb), 0.05));
+      box-shadow: var(--shadow);
+    }
+
+    .view-hero__meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .view-hero__microcopy {
+      margin: 0.12rem 0 0;
+      font-size: 0.76rem;
+      letter-spacing: 0.02em;
+      color: rgba(var(--ink-rgb), 0.46);
+    }
+
+    .card-chip,
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 0.35rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      font-size: 0.84rem;
+      font-weight: 700;
+      background: rgba(var(--white-rgb), 0.9);
+      color: var(--ink);
+    }
+
+    .tag.is-pending,
+    .booking-modal__status.is-pending {
+      background: rgba(var(--warning-rgb), 0.12);
+      color: var(--warning);
+      border-color: rgba(var(--warning-rgb), 0.2);
+    }
+
+    .tag.is-confirmed,
+    .tag.is-completed,
+    .booking-modal__status.is-confirmed,
+    .booking-modal__status.is-completed {
+      background: rgba(var(--success-rgb), 0.12);
+      color: var(--success);
+      border-color: rgba(var(--success-rgb), 0.2);
+    }
+
+    .tag.is-cancelled,
+    .booking-modal__status.is-cancelled {
+      background: rgba(var(--danger-rgb), 0.12);
+      color: var(--danger);
+      border-color: rgba(var(--danger-rgb), 0.18);
+    }
+
+    .surface-panel {
+      padding: 1.2rem;
+    }
+
+    .surface-panel__header {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: start;
+      margin-bottom: 1rem;
+    }
+
+    .surface-panel h2 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 0.5rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-size: 0.88rem;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .button-primary {
+      background: var(--accent);
+      color: #fff;
+      min-width: 124px;
+    }
+
+    .button-secondary {
+      background: transparent;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+    .button-danger {
+      background: rgba(var(--danger-rgb), 0.1);
+      color: var(--danger);
+      border-color: rgba(var(--danger-rgb), 0.24);
+    }
+
+    .weekly-preview {
+      display: grid;
+      gap: 1.2rem;
+      overflow: hidden;
+    }
+
+    .weekly-preview__intro {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: end;
+    }
+
+    .weekly-preview__intro p:last-child {
+      margin: 0.3rem 0 0;
+      max-width: 48rem;
+    }
+
+    .professional-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+    }
+
+    .pro-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      min-height: 40px;
+      padding: 0.5rem 0.9rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(var(--white-rgb), 0.84);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 140ms ease, opacity 140ms ease, border-color 140ms ease, background 140ms ease;
+    }
+
+    .pro-pill:hover {
+      transform: translateY(-1px);
+    }
+
+    .pro-pill.is-active {
+      border-color: rgba(var(--accent-rgb), 0.24);
+      background: rgba(var(--white-rgb), 0.98);
+    }
+
+    .pro-pill.is-muted {
+      opacity: 0.45;
+    }
+
+    .pro-pill__swatch {
+      width: 0.8rem;
+      height: 0.8rem;
+      border-radius: 999px;
+      flex: none;
+      background: var(--pill-color, rgba(var(--ink-rgb), 0.28));
+      box-shadow: 0 0 0 4px rgba(var(--white-rgb), 0.7);
+    }
+
+    .week-board {
+      display: grid;
+      grid-template-columns: 80px minmax(0, 1fr);
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .time-rail {
+      display: grid;
+      gap: 0;
+      padding-top: 4.6rem;
+    }
+
+    .time-rail span {
+      height: 82px;
+      display: flex;
+      align-items: start;
+      justify-content: flex-end;
+      padding-right: 0.5rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: rgba(var(--ink-rgb), 0.45);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .week-board__viewport {
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+      scroll-snap-type: x proximity;
+      scroll-padding-inline: 1rem;
+    }
+
+    .week-board__days {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(220px, 1fr));
+      gap: 0.9rem;
+      min-width: 100%;
+    }
+
+    .day-column {
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      background: rgba(var(--white-rgb), 0.62);
+      min-width: 0;
+      overflow: hidden;
+      scroll-snap-align: start;
+    }
+
+    .day-column.is-current {
+      border-color: rgba(var(--accent-rgb), 0.22);
+      background: linear-gradient(180deg, rgba(var(--white-rgb), 0.92), rgba(var(--accent-rgb), 0.06));
+    }
+
+    .day-column__header {
+      padding: 1rem 1rem 0.8rem;
+      border-bottom: 1px solid rgba(var(--ink-rgb), 0.08);
+      display: flex;
+      justify-content: space-between;
+      gap: 0.8rem;
+      align-items: center;
+    }
+
+    .day-column__label {
+      display: grid;
+      gap: 0.12rem;
+    }
+
+    .day-column__name {
+      font-size: 1rem;
+    }
+
+    .day-column__date {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(var(--ink-rgb), 0.52);
+    }
+
+    .day-column__count {
+      min-width: 34px;
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: rgba(var(--ink-rgb), 0.06);
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: rgba(var(--ink-rgb), 0.68);
+    }
+
+    .day-column__body {
+      position: relative;
+      height: 656px;
+      padding: 0.75rem;
+      background-image: linear-gradient(to bottom, rgba(var(--ink-rgb), 0.06) 1px, transparent 1px);
+      background-size: 100% 82px;
+    }
+
+    .booking-card {
+      position: absolute;
+      left: calc(0.75rem + (var(--stack, 0) * 12px));
+      right: 0.75rem;
+      top: calc((var(--start, 0) * 82px) + 0.75rem + (var(--pro-offset, 0) * -10px));
+      min-height: calc((var(--span, 1) * 82px) - 12px);
+      padding: 0.72rem 0.8rem;
+      border-radius: 18px;
+      border: 1px solid rgba(var(--ink-rgb), 0.08);
+      background: var(--card-bg, rgba(var(--white-rgb), 0.72));
+      backdrop-filter: blur(10px);
+      box-shadow: 0 16px 32px rgba(var(--ink-rgb), 0.08);
+      z-index: var(--z, 1);
+      overflow: hidden;
+      cursor: pointer;
+      transition: opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .booking-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 38px rgba(var(--ink-rgb), 0.12);
+    }
+
+    .booking-card.is-hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(6px);
+    }
+
+    .booking-card__pro {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-bottom: 0.45rem;
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: rgba(var(--ink-rgb), 0.52);
+    }
+
+    .booking-card__pro::before {
+      content: "";
+      width: 0.65rem;
+      height: 0.65rem;
+      border-radius: 999px;
+      background: var(--pro-color, rgba(var(--ink-rgb), 0.3));
+      flex: none;
+    }
+
+    .booking-card__client {
+      display: block;
+      font-size: 1rem;
+      line-height: 1;
+      margin-bottom: 0.3rem;
+      color: var(--ink);
+    }
+
+    .booking-card__service {
+      margin: 0;
+      font-size: 0.9rem;
+      color: rgba(var(--ink-rgb), 0.72);
+    }
+
+    .booking-modal-overlay {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 1rem;
+      background: rgba(var(--ink-rgb), 0.5);
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+      z-index: 50;
+    }
+
+    .booking-modal-overlay.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .booking-modal {
+      width: min(100%, 520px);
+      border-radius: 28px;
+      border: 1px solid rgba(var(--ink-rgb), 0.1);
+      background: linear-gradient(180deg, rgba(var(--white-rgb), 0.97), var(--card-bg, rgba(var(--white-rgb), 0.92)));
+      box-shadow: 0 30px 80px rgba(var(--ink-rgb), 0.22);
+      overflow: hidden;
+      transform: translateY(12px) scale(0.98);
+      transition: transform 180ms ease;
+    }
+
+    .booking-modal-overlay.is-visible .booking-modal {
+      transform: translateY(0) scale(1);
+    }
+
+    .booking-modal__header {
+      padding: 1.15rem 1.2rem 0.9rem;
+      background:
+        linear-gradient(180deg, rgba(var(--white-rgb), 0.78), transparent),
+        var(--card-bg, rgba(var(--white-rgb), 0.78));
+      border-bottom: 1px solid rgba(var(--ink-rgb), 0.08);
+    }
+
+    .booking-modal__topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .booking-modal__close {
+      min-width: 38px;
+      min-height: 38px;
+      border-radius: 999px;
+      border: 1px solid rgba(var(--ink-rgb), 0.12);
+      background: rgba(var(--white-rgb), 0.72);
+      color: var(--ink);
+      font: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .booking-modal__time {
+      display: block;
+      margin-top: 0.7rem;
+      font-size: clamp(2.2rem, 6vw, 3rem);
+      line-height: 0.92;
+      letter-spacing: -0.05em;
+      color: var(--ink);
+    }
+
+    .booking-modal__service {
+      margin: 0.28rem 0 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: rgba(var(--ink-rgb), 0.74);
+    }
+
+    .booking-modal__body {
+      padding: 1rem 1.2rem 1.2rem;
+      display: grid;
+      gap: 1rem;
+    }
+
+    .booking-modal__client {
+      display: block;
+      font-size: 1.55rem;
+      line-height: 1;
+      color: var(--ink);
+    }
+
+    .booking-modal__meta {
+      display: grid;
+      gap: 0.6rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .booking-modal__meta-item {
+      padding: 0.78rem 0.85rem;
+      border-radius: 16px;
+      background: rgba(var(--white-rgb), 0.54);
+      border: 1px solid rgba(var(--ink-rgb), 0.08);
+    }
+
+    .booking-modal__label {
+      display: block;
+      margin-bottom: 0.18rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(var(--ink-rgb), 0.52);
+      font-weight: 800;
+    }
+
+    .booking-modal__value {
+      display: block;
+      font-size: 0.98rem;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .booking-modal__notes {
+      margin: 0;
+      padding: 0.9rem 0.95rem;
+      border-radius: 18px;
+      background: rgba(var(--white-rgb), 0.52);
+      border: 1px solid rgba(var(--ink-rgb), 0.08);
+      line-height: 1.4;
+    }
+
+    .booking-modal__footer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .booking-modal__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+    }
+
+    .booking-modal__status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0.35rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      font-size: 0.84rem;
+      font-weight: 700;
+      background: rgba(var(--white-rgb), 0.9);
+      color: var(--ink);
+    }
+
+    .booking-modal__sim {
+      margin: 0;
+      font-size: 0.82rem;
+      color: rgba(var(--ink-rgb), 0.58);
+    }
+
+    .pro-raul {
+      --pro-color: rgba(189, 68, 57, 0.92);
+      --card-bg: rgba(189, 68, 57, 0.18);
+      --pill-color: rgba(189, 68, 57, 0.92);
+    }
+
+    .pro-chule {
+      --pro-color: rgba(43, 122, 120, 0.92);
+      --card-bg: rgba(43, 122, 120, 0.18);
+      --pill-color: rgba(43, 122, 120, 0.92);
+    }
+
+    .pro-natalia {
+      --pro-color: rgba(194, 141, 31, 0.92);
+      --card-bg: rgba(194, 141, 31, 0.18);
+      --pill-color: rgba(194, 141, 31, 0.92);
+    }
+
+    .pro-jesi {
+      --pro-color: rgba(108, 77, 173, 0.92);
+      --card-bg: rgba(108, 77, 173, 0.18);
+      --pill-color: rgba(108, 77, 173, 0.92);
+    }
+
+    @media (max-width: 900px) {
+      .view-hero__meta,
+      .surface-panel__header,
+      .weekly-preview__intro {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .week-board {
+        grid-template-columns: 1fr;
+      }
+
+      .time-rail {
+        display: none;
+      }
+
+      .booking-modal__meta {
+        grid-template-columns: 1fr;
+      }
+
+      .booking-modal__footer {
+        align-items: start;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .week-board__viewport {
+        margin-inline: -0.2rem;
+        padding-inline: 0.2rem;
+        scroll-snap-type: x mandatory;
+      }
+
+      .week-board__days {
+        grid-auto-flow: column;
+        grid-auto-columns: 86vw;
+        grid-template-columns: none;
+        min-width: auto;
+      }
+
+      .day-column {
+        scroll-snap-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="preview-shell">
+    <!--
+      Caja de contexto.
+      No forma parte del diseno final; solo explica el objetivo del mockup.
+    -->
+    <section class="preview-note">
+      <p class="eyebrow">Preview Estatica</p>
+      <strong>Objetivo del mockup</strong>
+      <p>
+        Esta vista muestra como dejaria la seccion de Turnos:
+        hora grande, cliente protagonista, servicio como subtitulo,
+        metadata liviana y acciones dependientes del estado.
+      </p>
+    </section>
+
+    <!--
+      Hero minimizado.
+      La idea es que con "Agenda del dia" alcance y el resto no robe atencion.
+      Dejo una microcopy muy chica solo como referencia visual.
+    -->
+    <section class="view-hero">
+      <div class="view-hero__meta">
+        <div>
+          <p class="eyebrow">Agenda del dia</p>
+          <p class="view-hero__microcopy">Encabezado minimo para acompanar la vista sin competir con el nav.</p>
+        </div>
+      </div>
+    </section>
+
+    <!--
+      Propuesta elegida:
+      agenda semanal por columnas de martes a sabado.
+      Objetivos del preview:
+      1. ver todos los profesionales arriba con color propio,
+      2. mostrar cada turno con nombre y servicio,
+      3. resolver coincidencias horarias con superposicion suave,
+      4. permitir foco por profesional con click,
+      5. en mobile dejar el dia actual centrado y deslizable.
+    -->
+    <section class="surface-panel weekly-preview">
+      <div class="weekly-preview__intro">
+        <div>
+          <p class="eyebrow">Alternativa semanal</p>
+          <h2>Agenda por especialistas</h2>
+          <p>
+            Cada tarjeta usa un color de profesional, una leve transparencia y un pequeno
+            desfase para que las coincidencias horarias se lean rapido sin ensuciar la grilla.
+          </p>
+        </div>
+        <span class="card-chip">Mar a Sab</span>
+      </div>
+
+      <!--
+        Filtro visual de profesionales.
+        En la preview el click solo oculta el resto de las tarjetas para simular la UX.
+      -->
+      <div class="professional-filter" data-role="professional-filter">
+        <button class="pro-pill is-active" type="button" data-filter="all">
+          <span class="pro-pill__swatch"></span>
+          Todos
+        </button>
+        <button class="pro-pill pro-raul" type="button" data-filter="raul">
+          <span class="pro-pill__swatch"></span>
+          Raul
+        </button>
+        <button class="pro-pill pro-chule" type="button" data-filter="chule">
+          <span class="pro-pill__swatch"></span>
+          Chule
+        </button>
+        <button class="pro-pill pro-natalia" type="button" data-filter="natalia">
+          <span class="pro-pill__swatch"></span>
+          Natalia
+        </button>
+        <button class="pro-pill pro-jesi" type="button" data-filter="jesi">
+          <span class="pro-pill__swatch"></span>
+          Jesi
+        </button>
+      </div>
+
+      <div class="week-board">
+        <!--
+          Columna horaria auxiliar para desktop.
+          En celular desaparece para que el ancho completo quede para el dia.
+        -->
+        <aside class="time-rail" aria-hidden="true">
+          <span>09:00</span>
+          <span>10:00</span>
+          <span>11:00</span>
+          <span>12:00</span>
+          <span>13:00</span>
+          <span>14:00</span>
+          <span>15:00</span>
+          <span>16:00</span>
+        </aside>
+
+        <!--
+          Viewport horizontal.
+          En mobile cada columna ocupa casi toda la pantalla para que:
+          - el dia actual sea el foco,
+          - se intuya que hay un dia antes y dias despues,
+          - se pueda navegar con swipe.
+        -->
+        <div class="week-board__viewport" data-role="week-viewport">
+          <div class="week-board__days">
+            <!--
+              Martes.
+              Hay coincidencia a las 10 para mostrar como dos especialistas se pisan
+              con distinto z-index y un corrimiento leve en X.
+            -->
+            <section class="day-column">
+              <header class="day-column__header">
+                <div class="day-column__label">
+                  <span class="day-column__name">Martes</span>
+                  <span class="day-column__date">01 Jul</span>
+                </div>
+                <span class="day-column__count">5</span>
+              </header>
+              <div class="day-column__body">
+                <article class="booking-card pro-raul" data-booking-id="b1" data-pro="raul" style="--start: 1; --span: 1; --stack: 0; --pro-offset: 0; --z: 2;">
+                  <span class="booking-card__pro">Raul</span>
+                  <strong class="booking-card__client">Carla Perez</strong>
+                  <p class="booking-card__service">Color global</p>
+                </article>
+
+                <article class="booking-card pro-natalia" data-booking-id="b2" data-pro="natalia" style="--start: 1; --span: 1; --stack: 1; --pro-offset: 2; --z: 3;">
+                  <span class="booking-card__pro">Natalia</span>
+                  <strong class="booking-card__client">Sol Medina</strong>
+                  <p class="booking-card__service">Brushing</p>
+                </article>
+
+                <article class="booking-card pro-chule" data-booking-id="b3" data-pro="chule" style="--start: 3; --span: 1; --stack: 0; --pro-offset: 1; --z: 2;">
+                  <span class="booking-card__pro">Chule</span>
+                  <strong class="booking-card__client">Lucia Gomez</strong>
+                  <p class="booking-card__service">Depilacion facial</p>
+                </article>
+
+                <article class="booking-card pro-jesi" data-booking-id="b4" data-pro="jesi" style="--start: 4; --span: 2; --stack: 0; --pro-offset: 3; --z: 2;">
+                  <span class="booking-card__pro">Jesi</span>
+                  <strong class="booking-card__client">Marina Sosa</strong>
+                  <p class="booking-card__service">Semipermanente</p>
+                </article>
+
+                <article class="booking-card pro-raul" data-booking-id="b5" data-pro="raul" style="--start: 6; --span: 1; --stack: 0; --pro-offset: 0; --z: 2;">
+                  <span class="booking-card__pro">Raul</span>
+                  <strong class="booking-card__client">Julieta Romero</strong>
+                  <p class="booking-card__service">Corte premium</p>
+                </article>
+              </div>
+            </section>
+
+            <!--
+              Miercoles.
+              Otra coincidencia horaria para validar el comportamiento visual.
+            -->
+            <section class="day-column">
+              <header class="day-column__header">
+                <div class="day-column__label">
+                  <span class="day-column__name">Miercoles</span>
+                  <span class="day-column__date">02 Jul</span>
+                </div>
+                <span class="day-column__count">4</span>
+              </header>
+              <div class="day-column__body">
+                <article class="booking-card pro-chule" data-booking-id="b6" data-pro="chule" style="--start: 0; --span: 1; --stack: 0; --pro-offset: 1; --z: 2;">
+                  <span class="booking-card__pro">Chule</span>
+                  <strong class="booking-card__client">Paula Rios</strong>
+                  <p class="booking-card__service">Laminado de cejas</p>
+                </article>
+
+                <article class="booking-card pro-jesi" data-booking-id="b7" data-pro="jesi" style="--start: 2; --span: 1; --stack: 0; --pro-offset: 3; --z: 2;">
+                  <span class="booking-card__pro">Jesi</span>
+                  <strong class="booking-card__client">Camila Arias</strong>
+                  <p class="booking-card__service">Kapping</p>
+                </article>
+
+                <article class="booking-card pro-natalia" data-booking-id="b8" data-pro="natalia" style="--start: 2; --span: 1; --stack: 1; --pro-offset: 2; --z: 3;">
+                  <span class="booking-card__pro">Natalia</span>
+                  <strong class="booking-card__client">Belen Quiroga</strong>
+                  <p class="booking-card__service">Peinado social</p>
+                </article>
+
+                <article class="booking-card pro-raul" data-booking-id="b9" data-pro="raul" style="--start: 5; --span: 2; --stack: 0; --pro-offset: 0; --z: 2;">
+                  <span class="booking-card__pro">Raul</span>
+                  <strong class="booking-card__client">Nicolas Vera</strong>
+                  <p class="booking-card__service">Barberia clasica</p>
+                </article>
+              </div>
+            </section>
+
+            <!--
+              Jueves.
+              Lo marco como dia actual de esta preview para que en mobile quede centrado al abrir.
+            -->
+            <section class="day-column is-current" data-current-day="true">
+              <header class="day-column__header">
+                <div class="day-column__label">
+                  <span class="day-column__name">Jueves</span>
+                  <span class="day-column__date">03 Jul</span>
+                </div>
+                <span class="day-column__count">6</span>
+              </header>
+              <div class="day-column__body">
+                <article class="booking-card pro-raul" data-booking-id="b10" data-pro="raul" style="--start: 1; --span: 1; --stack: 0; --pro-offset: 0; --z: 2;">
+                  <span class="booking-card__pro">Raul</span>
+                  <strong class="booking-card__client">Ivana Diaz</strong>
+                  <p class="booking-card__service">Corte y lavado</p>
+                </article>
+
+                <article class="booking-card pro-chule" data-booking-id="b11" data-pro="chule" style="--start: 1; --span: 1; --stack: 1; --pro-offset: 1; --z: 3;">
+                  <span class="booking-card__pro">Chule</span>
+                  <strong class="booking-card__client">Noe Campos</strong>
+                  <p class="booking-card__service">Perfilado de cejas</p>
+                </article>
+
+                <article class="booking-card pro-natalia" data-booking-id="b12" data-pro="natalia" style="--start: 3; --span: 2; --stack: 0; --pro-offset: 2; --z: 2;">
+                  <span class="booking-card__pro">Natalia</span>
+                  <strong class="booking-card__client">Rocio Perez</strong>
+                  <p class="booking-card__service">Botox capilar</p>
+                </article>
+
+                <article class="booking-card pro-jesi" data-booking-id="b13" data-pro="jesi" style="--start: 4; --span: 1; --stack: 1; --pro-offset: 3; --z: 3;">
+                  <span class="booking-card__pro">Jesi</span>
+                  <strong class="booking-card__client">Milagros Luna</strong>
+                  <p class="booking-card__service">Soft gel</p>
+                </article>
+
+                <article class="booking-card pro-chule" data-booking-id="b14" data-pro="chule" style="--start: 6; --span: 1; --stack: 0; --pro-offset: 1; --z: 2;">
+                  <span class="booking-card__pro">Chule</span>
+                  <strong class="booking-card__client">Emilia Juarez</strong>
+                  <p class="booking-card__service">Lifting de pestanas</p>
+                </article>
+
+                <article class="booking-card pro-raul" data-booking-id="b15" data-pro="raul" style="--start: 6; --span: 1; --stack: 1; --pro-offset: 0; --z: 3;">
+                  <span class="booking-card__pro">Raul</span>
+                  <strong class="booking-card__client">Gaston Ledesma</strong>
+                  <p class="booking-card__service">Barba y contour</p>
+                </article>
+              </div>
+            </section>
+
+            <!--
+              Viernes.
+              Mantengo mezcla de profesionales para revisar la lectura general del tablero.
+            -->
+            <section class="day-column">
+              <header class="day-column__header">
+                <div class="day-column__label">
+                  <span class="day-column__name">Viernes</span>
+                  <span class="day-column__date">04 Jul</span>
+                </div>
+                <span class="day-column__count">5</span>
+              </header>
+              <div class="day-column__body">
+                <article class="booking-card pro-jesi" data-booking-id="b16" data-pro="jesi" style="--start: 0; --span: 1; --stack: 0; --pro-offset: 3; --z: 2;">
+                  <span class="booking-card__pro">Jesi</span>
+                  <strong class="booking-card__client">Agustina Prado</strong>
+                  <p class="booking-card__service">Esculpidas</p>
+                </article>
+
+                <article class="booking-card pro-natalia" data-booking-id="b17" data-pro="natalia" style="--start: 2; --span: 2; --stack: 0; --pro-offset: 2; --z: 2;">
+                  <span class="booking-card__pro">Natalia</span>
+                  <strong class="booking-card__client">Delfina Ruiz</strong>
+                  <p class="booking-card__service">Color y brushing</p>
+                </article>
+
+                <article class="booking-card pro-raul" data-booking-id="b18" data-pro="raul" style="--start: 4; --span: 1; --stack: 0; --pro-offset: 0; --z: 2;">
+                  <span class="booking-card__pro">Raul</span>
+                  <strong class="booking-card__client">Leandro Torres</strong>
+                  <p class="booking-card__service">Fade clasico</p>
+                </article>
+
+                <article class="booking-card pro-chule" data-booking-id="b19" data-pro="chule" style="--start: 4; --span: 1; --stack: 1; --pro-offset: 1; --z: 3;">
+                  <span class="booking-card__pro">Chule</span>
+                  <strong class="booking-card__client">Valentina Ferreyra</strong>
+                  <p class="booking-card__service">Bozo + menton</p>
+                </article>
+
+                <article class="booking-card pro-natalia" data-booking-id="b20" data-pro="natalia" style="--start: 6; --span: 1; --stack: 0; --pro-offset: 2; --z: 2;">
+                  <span class="booking-card__pro">Natalia</span>
+                  <strong class="booking-card__client">Malena Ibarra</strong>
+                  <p class="booking-card__service">Nutricion express</p>
+                </article>
+              </div>
+            </section>
+
+            <!--
+              Sabado.
+              Queda un poco mas cargado para probar densidad y mezcla de colores.
+            -->
+            <section class="day-column">
+              <header class="day-column__header">
+                <div class="day-column__label">
+                  <span class="day-column__name">Sabado</span>
+                  <span class="day-column__date">05 Jul</span>
+                </div>
+                <span class="day-column__count">6</span>
+              </header>
+              <div class="day-column__body">
+                <article class="booking-card pro-chule" data-booking-id="b21" data-pro="chule" style="--start: 0; --span: 1; --stack: 0; --pro-offset: 1; --z: 2;">
+                  <span class="booking-card__pro">Chule</span>
+                  <strong class="booking-card__client">Ceci Navarro</strong>
+                  <p class="booking-card__service">Cejas + henna</p>
+                </article>
+
+                <article class="booking-card pro-raul" data-booking-id="b22" data-pro="raul" style="--start: 2; --span: 1; --stack: 0; --pro-offset: 0; --z: 2;">
+                  <span class="booking-card__pro">Raul</span>
+                  <strong class="booking-card__client">Matias Benitez</strong>
+                  <p class="booking-card__service">Barberia premium</p>
+                </article>
+
+                <article class="booking-card pro-jesi" data-booking-id="b23" data-pro="jesi" style="--start: 2; --span: 1; --stack: 1; --pro-offset: 3; --z: 3;">
+                  <span class="booking-card__pro">Jesi</span>
+                  <strong class="booking-card__client">Mora Siles</strong>
+                  <p class="booking-card__service">Belleza de manos</p>
+                </article>
+
+                <article class="booking-card pro-natalia" data-booking-id="b24" data-pro="natalia" style="--start: 4; --span: 2; --stack: 0; --pro-offset: 2; --z: 2;">
+                  <span class="booking-card__pro">Natalia</span>
+                  <strong class="booking-card__client">Ariadna Acosta</strong>
+                  <p class="booking-card__service">Balayage</p>
+                </article>
+
+                <article class="booking-card pro-raul" data-booking-id="b25" data-pro="raul" style="--start: 5; --span: 1; --stack: 1; --pro-offset: 0; --z: 3;">
+                  <span class="booking-card__pro">Raul</span>
+                  <strong class="booking-card__client">Facundo Mena</strong>
+                  <p class="booking-card__service">Corte y barba</p>
+                </article>
+
+                <article class="booking-card pro-chule" data-booking-id="b26" data-pro="chule" style="--start: 6; --span: 1; --stack: 0; --pro-offset: 1; --z: 2;">
+                  <span class="booking-card__pro">Chule</span>
+                  <strong class="booking-card__client">Jazmin Paredes</strong>
+                  <p class="booking-card__service">Lash lifting</p>
+                </article>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!--
+    Overlay de simulacion para detalle de turno.
+    La tarjeta expandida toma el color del profesional seleccionado.
+    Las acciones de cancelar, completar y reprogramar son solo de demostracion.
+  -->
+  <div class="booking-modal-overlay" data-role="booking-overlay" aria-hidden="true">
+    <article class="booking-modal" data-role="booking-modal">
+      <header class="booking-modal__header">
+        <div class="booking-modal__topbar">
+          <div>
+            <span class="booking-modal__status is-confirmed" data-role="booking-status">Confirmado</span>
+            <strong class="booking-modal__time" data-role="booking-time">11:30</strong>
+            <p class="booking-modal__service" data-role="booking-service">Color y brushing</p>
+          </div>
+          <button class="booking-modal__close" type="button" data-role="booking-close" aria-label="Cerrar detalle">x</button>
+        </div>
+      </header>
+
+      <div class="booking-modal__body">
+        <div>
+          <strong class="booking-modal__client" data-role="booking-client">Nombre del cliente</strong>
+        </div>
+
+        <div class="booking-modal__meta">
+          <div class="booking-modal__meta-item">
+            <span class="booking-modal__label">Profesional</span>
+            <span class="booking-modal__value" data-role="booking-pro">Natalia</span>
+          </div>
+          <div class="booking-modal__meta-item">
+            <span class="booking-modal__label">Dia</span>
+            <span class="booking-modal__value" data-role="booking-day">Jueves 03 Jul</span>
+          </div>
+          <div class="booking-modal__meta-item">
+            <span class="booking-modal__label">Duracion</span>
+            <span class="booking-modal__value" data-role="booking-duration">90 min</span>
+          </div>
+          <div class="booking-modal__meta-item">
+            <span class="booking-modal__label">Origen</span>
+            <span class="booking-modal__value" data-role="booking-source">Web publica</span>
+          </div>
+          <div class="booking-modal__meta-item">
+            <span class="booking-modal__label">Telefono</span>
+            <span class="booking-modal__value" data-role="booking-phone">11 5555 1111</span>
+          </div>
+          <div class="booking-modal__meta-item">
+            <span class="booking-modal__label">Reprogramado para</span>
+            <span class="booking-modal__value" data-role="booking-reschedule">Sin cambios</span>
+          </div>
+        </div>
+
+        <p class="booking-modal__notes" data-role="booking-notes">
+          La clienta pidio confirmacion previa y trabajar tonos mas frios.
+        </p>
+
+        <div class="booking-modal__footer">
+          <div class="booking-modal__actions">
+            <button class="button button-danger" type="button" data-action="cancel">Cancelar</button>
+            <button class="button button-primary" type="button" data-action="complete">Completar</button>
+            <button class="button button-secondary" type="button" data-action="reschedule">Reprogramar</button>
+          </div>
+          <p class="booking-modal__sim" data-role="booking-feedback">Simulacion visual del detalle del turno.</p>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <script>
+    /*
+      Script de preview.
+      1. filtra tarjetas por profesional al hacer click en la leyenda,
+      2. abre un overlay con detalle al hacer click en un turno,
+      3. simula acciones de cancelar, completar y reprogramar,
+      4. deja el dia actual en foco cuando la pantalla es chica.
+      Esto es solo demostrativo y no depende de datos reales.
+    */
+    (function () {
+      const buttons = Array.from(document.querySelectorAll("[data-filter]"));
+      const cards = Array.from(document.querySelectorAll(".booking-card"));
+      const currentDay = document.querySelector("[data-current-day='true']");
+      const isMobile = window.matchMedia("(max-width: 760px)");
+      const overlay = document.querySelector("[data-role='booking-overlay']");
+      const modal = document.querySelector("[data-role='booking-modal']");
+      const closeModalButton = document.querySelector("[data-role='booking-close']");
+      const statusNode = document.querySelector("[data-role='booking-status']");
+      const timeNode = document.querySelector("[data-role='booking-time']");
+      const serviceNode = document.querySelector("[data-role='booking-service']");
+      const clientNode = document.querySelector("[data-role='booking-client']");
+      const proNode = document.querySelector("[data-role='booking-pro']");
+      const dayNode = document.querySelector("[data-role='booking-day']");
+      const durationNode = document.querySelector("[data-role='booking-duration']");
+      const sourceNode = document.querySelector("[data-role='booking-source']");
+      const phoneNode = document.querySelector("[data-role='booking-phone']");
+      const rescheduleNode = document.querySelector("[data-role='booking-reschedule']");
+      const notesNode = document.querySelector("[data-role='booking-notes']");
+      const feedbackNode = document.querySelector("[data-role='booking-feedback']");
+      const actionButtons = Array.from(document.querySelectorAll("[data-action]"));
+      let activeBookingId = null;
+
+      const bookingDetails = {
+        b1: { status: "Pendiente", time: "10:30", day: "Martes 01 Jul", duration: "90 min", source: "Web publica", phone: "11 5823 1044", notes: "La clienta pidio trabajar tonos frios y confirmacion por WhatsApp.", service: "Color global", client: "Carla Perez", pro: "Raul", reschedule: "Sin cambios" },
+        b2: { status: "Confirmado", time: "10:30", day: "Martes 01 Jul", duration: "45 min", source: "Instagram", phone: "11 4459 7331", notes: "Pidio brushing rapido antes de una reunion.", service: "Brushing", client: "Sol Medina", pro: "Natalia", reschedule: "Sin cambios" },
+        b3: { status: "Confirmado", time: "12:00", day: "Martes 01 Jul", duration: "30 min", source: "Panel", phone: "11 3002 5419", notes: "Prefiere atencion puntual porque sale del trabajo.", service: "Depilacion facial", client: "Lucia Gomez", pro: "Chule", reschedule: "Sin cambios" },
+        b4: { status: "Pendiente", time: "13:00", day: "Martes 01 Jul", duration: "60 min", source: "Web publica", phone: "11 6204 9182", notes: "Consulta si puede sumar nail art segun disponibilidad.", service: "Semipermanente", client: "Marina Sosa", pro: "Jesi", reschedule: "Sin cambios" },
+        b5: { status: "Confirmado", time: "15:00", day: "Martes 01 Jul", duration: "40 min", source: "WhatsApp", phone: "11 4983 7710", notes: "Pidio corte corto y perfilado de barba.", service: "Corte premium", client: "Julieta Romero", pro: "Raul", reschedule: "Sin cambios" },
+        b6: { status: "Confirmado", time: "09:00", day: "Miercoles 02 Jul", duration: "35 min", source: "Panel", phone: "11 5288 7811", notes: "Llega con poco margen, prioridad en puntualidad.", service: "Laminado de cejas", client: "Paula Rios", pro: "Chule", reschedule: "Sin cambios" },
+        b7: { status: "Pendiente", time: "11:00", day: "Miercoles 02 Jul", duration: "45 min", source: "Web publica", phone: "11 6120 4370", notes: "Pregunto por opcion de refuerzo en una sola uña.", service: "Kapping", client: "Camila Arias", pro: "Jesi", reschedule: "Sin cambios" },
+        b8: { status: "Confirmado", time: "11:00", day: "Miercoles 02 Jul", duration: "50 min", source: "Instagram", phone: "11 4039 6632", notes: "Trae referencia visual del peinado.", service: "Peinado social", client: "Belen Quiroga", pro: "Natalia", reschedule: "Sin cambios" },
+        b9: { status: "Confirmado", time: "14:00", day: "Miercoles 02 Jul", duration: "80 min", source: "Panel", phone: "11 2095 7440", notes: "Solicito perfilado de barba con toalla caliente.", service: "Barberia clasica", client: "Nicolas Vera", pro: "Raul", reschedule: "Sin cambios" },
+        b10: { status: "Confirmado", time: "10:00", day: "Jueves 03 Jul", duration: "50 min", source: "Web publica", phone: "11 5877 2110", notes: "Pidio corte prolijo y lavado final.", service: "Corte y lavado", client: "Ivana Diaz", pro: "Raul", reschedule: "Sin cambios" },
+        b11: { status: "Pendiente", time: "10:00", day: "Jueves 03 Jul", duration: "30 min", source: "Instagram", phone: "11 6244 9082", notes: "Quiere definicion natural, sin maquillaje al final.", service: "Perfilado de cejas", client: "Noe Campos", pro: "Chule", reschedule: "Sin cambios" },
+        b12: { status: "Confirmado", time: "12:00", day: "Jueves 03 Jul", duration: "100 min", source: "Panel", phone: "11 3771 4902", notes: "Reservo bloque largo para botox y secado.", service: "Botox capilar", client: "Rocio Perez", pro: "Natalia", reschedule: "Sin cambios" },
+        b13: { status: "Pendiente", time: "13:00", day: "Jueves 03 Jul", duration: "45 min", source: "Web publica", phone: "11 6863 2107", notes: "Pide tono nude y forma almendrada.", service: "Soft gel", client: "Milagros Luna", pro: "Jesi", reschedule: "Sin cambios" },
+        b14: { status: "Confirmado", time: "15:00", day: "Jueves 03 Jul", duration: "40 min", source: "Panel", phone: "11 2443 8911", notes: "Solicito lifting con acabado muy natural.", service: "Lifting de pestanas", client: "Emilia Juarez", pro: "Chule", reschedule: "Sin cambios" },
+        b15: { status: "Confirmado", time: "15:00", day: "Jueves 03 Jul", duration: "35 min", source: "WhatsApp", phone: "11 5931 0024", notes: "Prefiere contorno bien marcado y barba corta.", service: "Barba y contour", client: "Gaston Ledesma", pro: "Raul", reschedule: "Sin cambios" },
+        b16: { status: "Pendiente", time: "09:00", day: "Viernes 04 Jul", duration: "60 min", source: "Instagram", phone: "11 4020 5106", notes: "Pide evaluar diseno simple si alcanza el tiempo.", service: "Esculpidas", client: "Agustina Prado", pro: "Jesi", reschedule: "Sin cambios" },
+        b17: { status: "Confirmado", time: "11:00", day: "Viernes 04 Jul", duration: "95 min", source: "Panel", phone: "11 3884 7718", notes: "Quiere brillo suave y brushing amplio.", service: "Color y brushing", client: "Delfina Ruiz", pro: "Natalia", reschedule: "Sin cambios" },
+        b18: { status: "Confirmado", time: "13:00", day: "Viernes 04 Jul", duration: "30 min", source: "Web publica", phone: "11 5200 2877", notes: "Cliente habitual, servicio rapido.", service: "Fade clasico", client: "Leandro Torres", pro: "Raul", reschedule: "Sin cambios" },
+        b19: { status: "Pendiente", time: "13:00", day: "Viernes 04 Jul", duration: "25 min", source: "Web publica", phone: "11 3615 1982", notes: "Consulta si se puede sumar bozo completo.", service: "Bozo + menton", client: "Valentina Ferreyra", pro: "Chule", reschedule: "Sin cambios" },
+        b20: { status: "Confirmado", time: "15:00", day: "Viernes 04 Jul", duration: "35 min", source: "Panel", phone: "11 6730 2544", notes: "Servicio corto entre otros turnos del salon.", service: "Nutricion express", client: "Malena Ibarra", pro: "Natalia", reschedule: "Sin cambios" },
+        b21: { status: "Confirmado", time: "09:00", day: "Sabado 05 Jul", duration: "40 min", source: "Instagram", phone: "11 2547 3871", notes: "Pidio tono de henna levemente mas oscuro.", service: "Cejas + henna", client: "Ceci Navarro", pro: "Chule", reschedule: "Sin cambios" },
+        b22: { status: "Confirmado", time: "11:00", day: "Sabado 05 Jul", duration: "45 min", source: "WhatsApp", phone: "11 4890 7732", notes: "Solicito barberia completa antes de un evento.", service: "Barberia premium", client: "Matias Benitez", pro: "Raul", reschedule: "Sin cambios" },
+        b23: { status: "Pendiente", time: "11:00", day: "Sabado 05 Jul", duration: "50 min", source: "Web publica", phone: "11 6442 1005", notes: "Quiere acabado natural y brillo extra.", service: "Belleza de manos", client: "Mora Siles", pro: "Jesi", reschedule: "Sin cambios" },
+        b24: { status: "Confirmado", time: "13:00", day: "Sabado 05 Jul", duration: "120 min", source: "Panel", phone: "11 3122 4950", notes: "Reservo bloque largo para balayage con secado.", service: "Balayage", client: "Ariadna Acosta", pro: "Natalia", reschedule: "Sin cambios" },
+        b25: { status: "Confirmado", time: "14:00", day: "Sabado 05 Jul", duration: "35 min", source: "Panel", phone: "11 5310 2674", notes: "Cliente frecuente, barba bien corta.", service: "Corte y barba", client: "Facundo Mena", pro: "Raul", reschedule: "Sin cambios" },
+        b26: { status: "Pendiente", time: "15:00", day: "Sabado 05 Jul", duration: "40 min", source: "Web publica", phone: "11 6882 9001", notes: "Pidio acabado bien levantado y natural.", service: "Lash lifting", client: "Jazmin Paredes", pro: "Chule", reschedule: "Sin cambios" }
+      };
+
+      function statusClassFromLabel(status) {
+        const normalized = status.toLowerCase();
+        if (normalized.includes("cancel")) return "is-cancelled";
+        if (normalized.includes("complet")) return "is-completed";
+        if (normalized.includes("pend")) return "is-pending";
+        return "is-confirmed";
+      }
+
+      function fillModal(id, card) {
+        const details = bookingDetails[id];
+        if (!details || !card || !modal) return;
+
+        modal.className = "booking-modal";
+        modal.classList.add("pro-" + card.dataset.pro);
+
+        statusNode.textContent = details.status;
+        statusNode.className = "booking-modal__status " + statusClassFromLabel(details.status);
+        timeNode.textContent = details.time;
+        serviceNode.textContent = details.service;
+        clientNode.textContent = details.client;
+        proNode.textContent = details.pro;
+        dayNode.textContent = details.day;
+        durationNode.textContent = details.duration;
+        sourceNode.textContent = details.source;
+        phoneNode.textContent = details.phone;
+        rescheduleNode.textContent = details.reschedule;
+        notesNode.textContent = details.notes;
+        feedbackNode.textContent = "Simulacion visual del detalle del turno.";
+      }
+
+      function openModal(card) {
+        activeBookingId = card.dataset.bookingId;
+        fillModal(activeBookingId, card);
+        overlay.classList.add("is-visible");
+        overlay.setAttribute("aria-hidden", "false");
+      }
+
+      function closeModal() {
+        overlay.classList.remove("is-visible");
+        overlay.setAttribute("aria-hidden", "true");
+        activeBookingId = null;
+      }
+
+      function applyFilter(filter) {
+        buttons.forEach((button) => {
+          const active = button.dataset.filter === filter;
+          button.classList.toggle("is-active", active);
+
+          if (filter === "all") {
+            button.classList.remove("is-muted");
+          } else {
+            button.classList.toggle("is-muted", !active);
+          }
+        });
+
+        cards.forEach((card) => {
+          const hide = filter !== "all" && card.dataset.pro !== filter;
+          card.classList.toggle("is-hidden", hide);
+        });
+      }
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => applyFilter(button.dataset.filter));
+      });
+
+      cards.forEach((card) => {
+        card.addEventListener("click", () => openModal(card));
+      });
+
+      if (closeModalButton) {
+        closeModalButton.addEventListener("click", closeModal);
+      }
+
+      if (overlay) {
+        overlay.addEventListener("click", (event) => {
+          if (event.target === overlay) {
+            closeModal();
+          }
+        });
+      }
+
+      actionButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          if (!activeBookingId) return;
+          const details = bookingDetails[activeBookingId];
+          if (!details) return;
+
+          if (button.dataset.action === "cancel") {
+            details.status = "Cancelado";
+            details.notes = "Simulacion: el turno fue cancelado desde el detalle.";
+            feedbackNode.textContent = "Simulacion: se actualizo el estado a cancelado.";
+          }
+
+          if (button.dataset.action === "complete") {
+            details.status = "Completado";
+            details.notes = "Simulacion: el servicio se marco como completado.";
+            feedbackNode.textContent = "Simulacion: se actualizo el estado a completado.";
+          }
+
+          if (button.dataset.action === "reschedule") {
+            details.status = "Reprogramado";
+            details.reschedule = "Lunes 07 Jul - 11:30";
+            details.notes = "Simulacion: el turno se movio a una nueva fecha y horario.";
+            feedbackNode.textContent = "Simulacion: se reprogramo el turno.";
+          }
+
+          fillModal(activeBookingId, document.querySelector("[data-booking-id='" + activeBookingId + "']"));
+          feedbackNode.textContent = button.dataset.action === "cancel"
+            ? "Simulacion: se actualizo el estado a cancelado."
+            : button.dataset.action === "complete"
+              ? "Simulacion: se actualizo el estado a completado."
+              : "Simulacion: se reprogramo el turno.";
+        });
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && overlay.classList.contains("is-visible")) {
+          closeModal();
+        }
+      });
+
+      applyFilter("all");
+
+      if (currentDay && isMobile.matches) {
+        currentDay.scrollIntoView({ behavior: "auto", block: "nearest", inline: "center" });
+      }
+    }());
+  </script>
+
+  <!--
+    Nota para implementacion futura:
+    este preview ya deja simulados:
+    - el filtro por profesional,
+    - el click sobre cada turno,
+    - el overlay con detalle,
+    - las acciones de cancelar, completar y reprogramar.
+    Cuando se lleve a codigo real, la idea seria reemplazar bookingDetails por datos reales
+    y conectar esas acciones con Firebase o con la capa de estado de admin-web.
+  -->
+</body>
+</html>

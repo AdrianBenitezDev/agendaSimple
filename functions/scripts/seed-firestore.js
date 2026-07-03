@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+const { buildTenantServiceConfigData } = require("./lib/tenant-service-config");
 
 const dataFile = process.env.ROCKEALA_SEED_FILE
   ? path.resolve(process.env.ROCKEALA_SEED_FILE)
@@ -72,6 +73,42 @@ function withTenantId(data, tenantId) {
   };
 }
 
+function buildTenantConfigDocs(tenantEntry, tenantId) {
+  const configuredDocs = Array.isArray(tenantEntry.config) ? tenantEntry.config : [];
+  const docsById = new Map();
+
+  configuredDocs.forEach((entry) => {
+    if (!entry?.id) {
+      return;
+    }
+
+    docsById.set(entry.id, entry);
+  });
+
+  const derivedServicesConfig = {
+    id: "servicios",
+    data: {
+      ...buildTenantServiceConfigData(tenantEntry.servicios, tenantEntry.admins),
+      generatedFrom: "seed-firestore"
+    }
+  };
+
+  if (docsById.has("servicios")) {
+    const existingEntry = docsById.get("servicios");
+    docsById.set("servicios", {
+      ...existingEntry,
+      data: {
+        ...(existingEntry?.data || {}),
+        ...derivedServicesConfig.data
+      }
+    });
+  } else {
+    docsById.set("servicios", derivedServicesConfig);
+  }
+
+  return [...docsById.values()];
+}
+
 async function seedTenantCollection(writer, tenantRef, tenantId, collectionName, docs = []) {
   docs.forEach((entry) => {
     const ref = tenantRef.collection(collectionName).doc(entry.id);
@@ -119,6 +156,7 @@ async function seedTenants(seedData) {
     seedTenantCollection(writer, tenantRef, tenantId, "admins", tenantEntry.admins);
     seedTenantCollection(writer, tenantRef, tenantId, "adminInvites", tenantEntry.adminInvites);
     seedTenantCollection(writer, tenantRef, tenantId, "servicios", tenantEntry.servicios);
+    seedTenantCollection(writer, tenantRef, tenantId, "config", buildTenantConfigDocs(tenantEntry, tenantId));
     seedTenantCollection(writer, tenantRef, tenantId, "stock", tenantEntry.stock);
     seedTenantCollection(writer, tenantRef, tenantId, "productos", tenantEntry.productos);
     seedTenantCollection(writer, tenantRef, tenantId, "turnos", tenantEntry.turnos);

@@ -11,7 +11,8 @@
     "logs": "firebase functions:log",
     "seed:demo": "node ./scripts/seed-firestore.js",
     "migrate:tenants": "node ./scripts/migrate-to-tenants.js",
-    "sync:plans": "node ./scripts/sync-plans.js"
+    "sync:plans": "node ./scripts/sync-plans.js",
+    "sync:tenant-service-config": "node ./scripts/sync-tenant-service-config.js"
   },
   "dependencies": {
     "firebase-admin": "^13.10.0",

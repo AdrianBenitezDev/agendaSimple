@@ -1,0 +1,55 @@
+AgendaSimple - contexto general resumido
+Actualizado segun el repo local el 2026-06-15
+
+1. Proyecto Firebase
+
+- display name actual: agendaSimple
+- projectId real: rockeala
+- modelo actual: multi-tenant bajo `tenants/{tenantId}`
+
+2. Hostings del proyecto
+
+- `admin-web`
+  - URL: https://agendasimple-admin.web.app/
+  - funcion: sitio comercial del SaaS
+  - uso: login, registro, seleccion de plan y administracion del tenant en Firebase
+  - rutas clave:
+    - `/` landing de acceso
+    - `/registro` alta de cuenta y de tenant
+    - `/panel?tenant={tenantId}` panel operativo
+
+- `public-web`
+  - URL base: https://agendasimple-public.web.app/
+  - funcion: plantilla publica multi-tenant
+  - uso: renderiza datos de un tenant especifico
+  - formato esperado: `https://agendasimple-public.web.app/{tenantId}`
+
+- `web-rockeala`
+  - dominio: https://rockeala.com.ar/
+  - funcion: copia de `public-web` pero fijada al tenant `rockeala`
+  - uso: sitio publico del negocio actual con dominio propio
+
+3. Regla conceptual
+
+- `admin-web` vende y administra tenants
+- `public-web` muestra datos publicos de cualquier tenant
+- `web-rockeala` muestra solo el tenant `rockeala`
+
+4. Registro y acceso
+
+- el registro de nuevos usuarios/tenants vive en `admin-web`
+- `public-web` ya no contiene archivos de registro; redirige la ruta `/registro` hacia `admin-web`
+- el panel admin requiere tenant explicito
+- el acceso puede hacerse con Google o con email/contrasena si Firebase Auth lo tiene habilitado
+
+5. Datos principales en Firestore
+
+- `tenants/{tenantId}`
+- `tenants/{tenantId}/admins`
+- `tenants/{tenantId}/servicios`
+- `tenants/{tenantId}/clientes`
+- `tenants/{tenantId}/turnos`
+- `tenants/{tenantId}/stock`
+- `tenants/{tenantId}/productos`
+- `tenants/{tenantId}/salonMedia`
+- `planes` como catalogo global de planes

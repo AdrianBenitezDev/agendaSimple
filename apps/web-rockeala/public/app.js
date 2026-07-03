@@ -348,6 +348,31 @@ function buildPublicRoleSummary({ rawRole = "", rawArea = "", extraHints = [] } 
   };
 }
 
+function normalizeServiceSpecialSchedule(rawSchedule = []) {
+  return (Array.isArray(rawSchedule) ? rawSchedule : [])
+    .map((entry) => {
+      const dateKey = String(entry?.dateKey || "").trim();
+      const startMinutes = Number(entry?.startMinutes);
+      const endMinutes = Number(entry?.endMinutes);
+
+      if (!dateKey || !Number.isFinite(startMinutes) || !Number.isFinite(endMinutes) || startMinutes < 0 || endMinutes > 1440 || startMinutes >= endMinutes) {
+        return null;
+      }
+
+      return {
+        dateKey,
+        startMinutes,
+        endMinutes
+      };
+    })
+    .filter(Boolean)
+    .sort((leftEntry, rightEntry) => (
+      leftEntry.dateKey.localeCompare(rightEntry.dateKey, "es")
+      || leftEntry.startMinutes - rightEntry.startMinutes
+      || leftEntry.endMinutes - rightEntry.endMinutes
+    ));
+}
+
 function normalizeService(rawService) {
   return {
     id: rawService.id,
@@ -359,7 +384,10 @@ function normalizeService(rawService) {
     durationMinutes: Number(rawService.durationMinutes || 0),
     description: rawService.description || "Servicio disponible en Rockeala Salón.",
     sortOrder: Number(rawService.sortOrder || 0),
-    publicVisible: rawService.publicVisible !== false
+    publicVisible: rawService.publicVisible !== false,
+    isSpecial: rawService.isSpecial === true,
+    specialSchedule: normalizeServiceSpecialSchedule(rawService.specialSchedule),
+    imageUrl: rawService.imageUrl || ""
   };
 }
 
@@ -493,6 +521,10 @@ function getSelectedService() {
 function getSelectedServiceDuration() {
   const selectedService = getSelectedService();
   return Math.max(30, Number(selectedService?.durationMinutes || 60));
+}
+
+function getSpecialScheduleEntriesForDate(service, dateKey) {
+  return normalizeServiceSpecialSchedule(service?.specialSchedule).filter((entry) => entry.dateKey === dateKey);
 }
 
 function setMessage(message, tone = "") {
@@ -1083,47 +1115,82 @@ function renderServiceOptions() {
 
 function buildTimeSlotsForDate(dateKey, durationMinutes = getSelectedServiceDuration()) {
   const selectedDate = parseDateKey(dateKey);
+  const selectedService = getSelectedService();
 
-  if (!selectedDate) {
+  if (!selectedDate || !selectedService) {
     return [];
   }
 
-  const isOpenDay = BOOKING_RULES.openDays.includes(selectedDate.getDay());
   const slots = [];
+  const minimumStartTime = Date.now() + BOOKING_RULES.minLeadMinutes * 60000;
+  const pushWindowSlots = (startMinutes, endMinutes, isOpenDay = true) => {
+    for (let minutes = startMinutes; minutes < endMinutes; minutes += BOOKING_RULES.slotIntervalMinutes) {
+      const slotDate = createDateWithTime(dateKey, minutes);
+      const slotEndsAt = minutes + durationMinutes;
+      const isTooLate = slotEndsAt > endMinutes;
+      const isTooSoon = !slotDate || slotDate.getTime() < minimumStartTime;
+      const isAvailable = isOpenDay && !isTooLate && !isTooSoon;
+
+      let disabledReason = "";
+
+      if (!isOpenDay) {
+        disabledReason = "Cerrado";
+      } else if (isTooSoon) {
+        disabledReason = "No disponible";
+      } else if (isTooLate) {
+        disabledReason = "No alcanza el bloque";
+      }
+
+      slots.push({
+        minutes,
+        label: formatTimeLabel(minutes),
+        endLabel: formatTimeLabel(Math.min(slotEndsAt, endMinutes)),
+        isAvailable,
+        disabledReason
+      });
+    }
+  };
+
+  if (selectedService.isSpecial) {
+    getSpecialScheduleEntriesForDate(selectedService, dateKey).forEach((entry) => {
+      pushWindowSlots(entry.startMinutes, entry.endMinutes);
+    });
+
+    return slots;
+  }
+
+  const isOpenDay = BOOKING_RULES.openDays.includes(selectedDate.getDay());
   const openingMinutes = BOOKING_RULES.openHour * 60;
   const closingMinutes = BOOKING_RULES.closeHour * 60;
-  const minimumStartTime = Date.now() + BOOKING_RULES.minLeadMinutes * 60000;
-
-  for (let minutes = openingMinutes; minutes < closingMinutes; minutes += BOOKING_RULES.slotIntervalMinutes) {
-    const slotDate = createDateWithTime(dateKey, minutes);
-    const slotEndsAt = minutes + durationMinutes;
-    const isTooLate = slotEndsAt > closingMinutes;
-    const isTooSoon = slotDate.getTime() < minimumStartTime;
-    const isAvailable = isOpenDay && !isTooLate && !isTooSoon;
-
-    let disabledReason = "";
-
-    if (!isOpenDay) {
-      disabledReason = "Cerrado";
-    } else if (isTooSoon) {
-      disabledReason = "No disponible";
-    } else if (isTooLate) {
-      disabledReason = "No alcanza el bloque";
-    }
-
-    slots.push({
-      minutes,
-      label: formatTimeLabel(minutes),
-      endLabel: formatTimeLabel(Math.min(slotEndsAt, closingMinutes)),
-      isAvailable,
-      disabledReason
-    });
-  }
+  pushWindowSlots(openingMinutes, closingMinutes, isOpenDay);
 
   return slots;
 }
 
 function buildBookingDays() {
+  const selectedService = getSelectedService();
+
+  if (selectedService?.isSpecial) {
+    const normalizedSchedule = normalizeServiceSpecialSchedule(selectedService.specialSchedule);
+    const uniqueDateKeys = [...new Set(normalizedSchedule.map((entry) => entry.dateKey))];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return uniqueDateKeys.map((dateKey) => {
+      const date = parseDateKey(dateKey);
+      const slots = buildTimeSlotsForDate(dateKey);
+      const availableSlotsCount = slots.filter((slot) => slot.isAvailable).length;
+
+      return {
+        key: dateKey,
+        date,
+        isOpen: true,
+        isSelectable: availableSlotsCount > 0,
+        availableSlotsCount
+      };
+    }).filter((day) => day.date && day.date >= today);
+  }
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -1268,6 +1335,9 @@ function renderSelectedService() {
     <p>${escapeHtml(selectedService.area)} - ${escapeHtml(selectedService.adminName)}</p>
     <p>${escapeHtml(formatMoney(selectedService.price))} - ${escapeHtml(formatDuration(selectedService.durationMinutes))}</p>
     <p>${escapeHtml(selectedService.description)}</p>
+    <p>${escapeHtml(selectedService.isSpecial
+      ? "Servicio especial disponible solo en fechas puntuales definidas por la profesional."
+      : "Servicio con agenda regular del profesional.")}</p>
     <p class="summary-emphasis">${escapeHtml(scheduleCopy)}</p>
   `;
 }
@@ -1321,6 +1391,37 @@ function validateBookingWindow(rawDateTime) {
   }
 
   return "";
+}
+
+function validateSelectedBookingWindow(rawDateTime) {
+  const selectedService = getSelectedService();
+  const parsedDate = new Date(rawDateTime);
+
+  if (!selectedService || Number.isNaN(parsedDate.getTime())) {
+    return "ElegÃ­ una fecha y hora vÃ¡lidas.";
+  }
+
+  const minimumStartTime = Date.now() + BOOKING_RULES.minLeadMinutes * 60000;
+
+  if (parsedDate.getTime() < minimumStartTime) {
+    return "Ese horario ya no estÃ¡ disponible. Elige otro mÃ¡s adelante.";
+  }
+
+  if (selectedService.isSpecial) {
+    const selectedDateKey = getDateKey(parsedDate);
+    const requestedStartMinutes = (parsedDate.getHours() * 60) + parsedDate.getMinutes();
+    const requestedEndMinutes = requestedStartMinutes + getSelectedServiceDuration();
+    const matchesSpecialWindow = getSpecialScheduleEntriesForDate(selectedService, selectedDateKey)
+      .some((entry) => requestedStartMinutes >= entry.startMinutes && requestedEndMinutes <= entry.endMinutes);
+
+    if (!matchesSpecialWindow) {
+      return "Este servicio especial solo puede reservarse dentro de las fechas y horarios definidos por la profesional.";
+    }
+
+    return "";
+  }
+
+  return validateBookingWindow(rawDateTime);
 }
 
 async function loadTenantContext() {
@@ -1523,7 +1624,7 @@ async function handleBookingSubmit(event) {
     return;
   }
 
-  const bookingWindowError = validateBookingWindow(requestedStartInput.value);
+  const bookingWindowError = validateSelectedBookingWindow(requestedStartInput.value);
 
   if (bookingWindowError) {
     setMessage(bookingWindowError, "error");

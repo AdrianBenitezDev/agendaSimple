@@ -6,10 +6,13 @@
     "rockeala": {
       "hosting": {
         "adminWeb": [
-          "rockeala-admin"
+          "agendasimple-admin"
         ],
         "publicWeb": [
           "rockeala"
+        ],
+        "publicWebAgendaSimple": [
+          "agendasimple-public"
         ],
         "webRockeala": [
           "rockeala-public-custom"
